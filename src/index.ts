@@ -15,3 +15,4 @@ export * from './scheduler/index.js';
 export * from './collaboration/index.js';
 export * from './perf/index.js';
 export * from './plugin/index.js';
+export * from './web/index.js';
