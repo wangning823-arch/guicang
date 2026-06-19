@@ -27,3 +27,9 @@ export {
   type InstallRecord,
   type RatingRecord,
 } from './marketplace.js';
+export {
+  PluginHotReload,
+  pluginHotReload,
+  type HotReloadEvent,
+  type HotReloadCallback,
+} from './hot-reload.js';
