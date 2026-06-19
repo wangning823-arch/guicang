@@ -19,10 +19,12 @@
 - [x] P15: 更多 Provider — Ollama、Google Gemini、Azure OpenAI
 - [x] P16: WebSocket 渠道 — 实时双向通信支持
 - [x] P17: 插件系统 — 动态加载和管理插件
+- [x] P18: Web UI 界面 — 基于 WebSocket 的聊天界面
+- [x] P19: 流式输出支持 — StreamHandler 流式处理
+- [x] P20: 多模态支持 — 图片、音频内容支持
 
 ## 后续优化
-- [ ] P18: Web UI 界面
-- [ ] P19: 流式输出支持
-- [ ] P20: 语音输入/输出
-- [ ] P21: 多模态支持（图片、音频）
+- [ ] P21: 语音输入/输出
 - [ ] P22: 分布式 Agent 运行
+- [ ] P23: 可视化工作流编辑器
+- [ ] P24: 监控和可观测性
