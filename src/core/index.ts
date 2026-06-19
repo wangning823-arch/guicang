@@ -11,3 +11,4 @@ export type {
 export { Logger, logger } from './logger.js';
 export type { LogLevel, LogEntry } from './logger.js';
 export { Agent, type AgentOptions } from './agent.js';
+export { StreamHandler, type StreamEvent, type StreamEventType, type StreamCallback } from './stream.js';
