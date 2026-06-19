@@ -84,14 +84,14 @@ export class StreamHandler {
       arguments: this.safeParseJSON(toolCall.argsBuffer),
     };
 
-    this.emit({ type: 'tool_call_end', toolCallId: id, toolCall });
+    this.emit({ type: 'tool_call_end', toolCallId: id, toolCall: parsed });
     this.toolCalls.delete(id);
     return parsed;
   }
 
   /** 完成处理 */
   finish(): LLMResponse {
-    const toolCalls = [...this.toolCalls.values()].map((tc) => ({
+    const toolCalls: ToolCall[] = [...this.toolCalls.values()].map((tc) => ({
       id: tc.id,
       name: tc.name,
       arguments: this.safeParseJSON(tc.argsBuffer),
