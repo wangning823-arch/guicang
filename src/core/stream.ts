@@ -3,7 +3,7 @@
  * 实现 LLM 流式响应处理
  */
 
-import type { Message, ToolCall, LLMResponse } from './types.js';
+import type { ToolCall, LLMResponse } from './types.js';
 
 /** 流式事件类型 */
 export type StreamEventType =

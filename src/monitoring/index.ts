@@ -8,3 +8,10 @@ export {
   type HealthReport,
   type HealthChecker,
 } from './health.js';
+export {
+  TraceVisualizer,
+  renderTrace,
+  renderTraceHTML,
+  type TimelineOptions,
+  type TraceSummary,
+} from './trace-visualizer.js';
