@@ -29,6 +29,22 @@ export interface WebServerOptions {
   staticDir?: string;
 }
 
+interface WorkflowDefinition {
+  id: string;
+  name: string;
+  nodes: Array<{
+    id: string;
+    type: string;
+    name: string;
+    x: number;
+    y: number;
+    config?: Record<string, unknown>;
+  }>;
+  connections: Array<{ from: string; to: string }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export class WebServer {
   private httpServer: Server | null = null;
   private wss: WebSocketServer | null = null;
@@ -37,6 +53,7 @@ export class WebServer {
   private port: number;
   private host: string;
   private staticDir: string;
+  private workflows = new Map<string, WorkflowDefinition>();
 
   constructor(options: WebServerOptions = {}) {
     this.port = options.port ?? 3000;
@@ -85,8 +102,76 @@ export class WebServer {
     });
   }
 
-  private async handleHTTPRequest(req: { url?: string }, res: { setHeader: (k: string, v: string) => void; end: (data: string) => void; writeHead: (code: number) => void }) {
-    let filePath = req.url === '/' ? '/index.html' : req.url ?? '/index.html';
+  private async handleHTTPRequest(req: { url?: string; method?: string; on: (e: string, cb: (d: Buffer) => void) => void }, res: { setHeader: (k: string, v: string) => void; end: (data: string) => void; writeHead: (code: number, headers?: Record<string, string>) => void }) {
+    const url = new URL(req.url ?? '/', `http://localhost`);
+    const pathname = url.pathname;
+
+    // CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end('');
+      return;
+    }
+
+    // Workflow API routes
+    if (pathname === '/api/workflows' && req.method === 'GET') {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        workflows: [...this.workflows.values()].map((w) => ({
+          id: w.id, name: w.name, createdAt: w.createdAt, updatedAt: w.updatedAt,
+        })),
+      }));
+      return;
+    }
+
+    if (pathname === '/api/workflows' && req.method === 'POST') {
+      const body = await this.readBody(req);
+      const data = JSON.parse(body) as Omit<WorkflowDefinition, 'id' | 'createdAt' | 'updatedAt'>;
+      const id = 'wf-' + Date.now();
+      const workflow: WorkflowDefinition = {
+        ...data, id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      };
+      this.workflows.set(id, workflow);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(workflow));
+      return;
+    }
+
+    if (pathname.startsWith('/api/workflows/') && req.method === 'GET') {
+      const id = pathname.split('/').pop()!;
+      const workflow = this.workflows.get(id);
+      if (!workflow) { res.writeHead(404); res.end('{"error":"Not found"}'); return; }
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(workflow));
+      return;
+    }
+
+    if (pathname.startsWith('/api/workflows/') && req.method === 'PUT') {
+      const id = pathname.split('/').pop()!;
+      const workflow = this.workflows.get(id);
+      if (!workflow) { res.writeHead(404); res.end('{"error":"Not found"}'); return; }
+      const body = await this.readBody(req);
+      const data = JSON.parse(body) as Partial<WorkflowDefinition>;
+      Object.assign(workflow, data, { updatedAt: new Date().toISOString() });
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(workflow));
+      return;
+    }
+
+    if (pathname.startsWith('/api/workflows/') && req.method === 'DELETE') {
+      const id = pathname.split('/').pop()!;
+      this.workflows.delete(id);
+      res.setHeader('Content-Type', 'application/json');
+      res.end('{"ok":true}');
+      return;
+    }
+
+    // Static files
+    let filePath = pathname === '/' ? '/index.html' : pathname;
     filePath = resolve(this.staticDir, filePath.slice(1));
 
     try {
@@ -178,5 +263,19 @@ export class WebServer {
         message: error instanceof Error ? error.message : 'Unknown error',
       }));
     }
+  }
+
+  private readBody(req: { on: (event: string, cb: (...args: unknown[]) => void) => void }): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', (chunk: unknown) => (data += String(chunk)));
+      req.on('end', () => resolve(data));
+      req.on('error', (e: unknown) => reject(e));
+    });
+  }
+
+  /** 获取所有工作流 */
+  getWorkflows(): WorkflowDefinition[] {
+    return [...this.workflows.values()];
   }
 }
