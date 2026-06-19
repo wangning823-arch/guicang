@@ -19,3 +19,4 @@ export * from './web/index.js';
 export * from './multimodal/index.js';
 export * from './voice/index.js';
 export * from './distributed/index.js';
+export * from './workflow/index.js';
