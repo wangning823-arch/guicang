@@ -1,0 +1,30 @@
+# 归藏配置 - 使用 Mimo v2.5
+
+name = "guicang"
+logLevel = "info"
+defaultProvider = "mimo"
+
+[[providers]]
+type = "mimo"
+baseUrl = "https://token-plan-cn.xiaomimimo.com/anthropic"
+model = "mimo-v2.5"
+timeout = 120000
+maxRetries = 3
+
+[tools]
+enabled = ["file_read", "file_write", "shell"]
+executionTimeout = 60000
+maxConcurrency = 5
+
+[[channels]]
+type = "cli"
+
+[[channels]]
+type = "http"
+port = 8080
+host = "0.0.0.0"
+
+[memory]
+shortTermLimit = 100
+longTermPath = "./data/memory"
+embeddingDimension = 1536

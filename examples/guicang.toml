@@ -1,0 +1,37 @@
+# 归藏示例配置
+
+name = "guicang"
+logLevel = "info"
+defaultProvider = "openai"
+
+[[providers]]
+type = "openai"
+baseUrl = "https://api.openai.com/v1"
+model = "gpt-4o"
+timeout = 60000
+maxRetries = 3
+
+[[providers]]
+type = "anthropic"
+baseUrl = "https://api.anthropic.com"
+model = "claude-sonnet-4-20250514"
+timeout = 60000
+maxRetries = 3
+
+[tools]
+enabled = ["web_search", "file_read", "file_write", "shell"]
+executionTimeout = 30000
+maxConcurrency = 5
+
+[[channels]]
+type = "cli"
+
+[[channels]]
+type = "http"
+port = 8080
+host = "0.0.0.0"
+
+[memory]
+shortTermLimit = 100
+longTermPath = "./data/memory"
+embeddingDimension = 1536

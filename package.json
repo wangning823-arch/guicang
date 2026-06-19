@@ -1,0 +1,39 @@
+{
+  "name": "guicang",
+  "version": "1.0.0",
+  "description": "万物归藏，一念即达 — 通用 AI Agent 框架",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ tests/",
+    "lint:fix": "eslint src/ tests/ --fix",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/index.ts",
+    "check": "npm run typecheck && npm run lint && npm test"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "llm",
+    "framework"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/node": "^26.0.0",
+    "@types/ws": "^8.18.1",
+    "eslint": "^9.28.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}
