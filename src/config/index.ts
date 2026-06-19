@@ -8,3 +8,8 @@ export {
   type ConfigIntent,
   type ParsedConfigCommand,
 } from './natural-language.js';
+export {
+  ConfigVersioning,
+  configVersioning,
+  type ConfigVersion,
+} from './versioning.js';
