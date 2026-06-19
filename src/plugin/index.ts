@@ -20,3 +20,10 @@ export {
   unloadAllPlugins,
   clearPluginRegistry,
 } from './registry.js';
+export {
+  PluginMarketplace,
+  marketplace,
+  type PluginMetadata,
+  type InstallRecord,
+  type RatingRecord,
+} from './marketplace.js';
