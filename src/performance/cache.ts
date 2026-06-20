@@ -22,6 +22,7 @@ interface CacheEntry<T> {
   value: T;
   expiresAt: number;
   hits: number;
+  lastAccessedAt: number;
   createdAt: number;
 }
 
@@ -79,6 +80,7 @@ export class Cache<T = unknown> {
     }
 
     entry.hits++;
+    entry.lastAccessedAt = Date.now();
     this.recordHit();
     return entry.value;
   }
@@ -97,6 +99,7 @@ export class Cache<T = unknown> {
       value,
       expiresAt,
       hits: 0,
+      lastAccessedAt: Date.now(),
       createdAt: Date.now(),
     });
 
@@ -172,23 +175,51 @@ export class Cache<T = unknown> {
   }
 
   /**
-   * 淘汰最少使用的条目
+   * 清理过期条目
    */
-  private evictLRU(): void {
-    let minHits = Infinity;
-    let minKey = '';
+  cleanup(): number {
+    const now = Date.now();
+    let removed = 0;
 
     for (const [key, entry] of this.store) {
-      if (entry.hits < minHits) {
-        minHits = entry.hits;
-        minKey = key;
+      if (now > entry.expiresAt) {
+        this.store.delete(key);
+        removed++;
       }
     }
 
-    if (minKey) {
-      this.store.delete(minKey);
+    if (removed > 0) {
+      this.stats.size = this.store.size;
+      logger.debug(`Cleaned up ${removed} expired cache entries`);
+    }
+
+    return removed;
+  }
+
+  /**
+   * 淘汰最近最少访问的条目
+   * 基于 lastAccessedAt + hits 综合判断真正的 LRU
+   * lastAccessedAt 越早 + hits 越少 → 优先淘汰
+   */
+  private evictLRU(): void {
+    let evictKey = '';
+    let evictScore = -1; // higher = evict first
+
+    for (const [key, entry] of this.store) {
+      // 得分 = 距离上次访问的时间(越大越老) - hits 权重
+      const age = Date.now() - entry.lastAccessedAt;
+      const score = age - entry.hits * 1000; // 每次 hit 抵消 1 秒老化
+
+      if (evictKey === '' || score > evictScore) {
+        evictScore = score;
+        evictKey = key;
+      }
+    }
+
+    if (evictKey) {
+      this.store.delete(evictKey);
       this.stats.evictions++;
-      logger.debug(`Evicted LRU cache entry: ${minKey}`);
+      logger.debug(`Evicted LRU cache entry: ${evictKey}`);
     }
   }
 

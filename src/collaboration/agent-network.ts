@@ -66,6 +66,7 @@ export class AgentNetwork {
   private tasks = new Map<string, CollaborationTask>();
   private messageHandlers = new Map<string, MessageHandler[]>();
   private messageHistory: CollaborationMessage[] = [];
+  private maxHistorySize = 1000;
 
   /**
    * 注册 Agent
@@ -135,6 +136,10 @@ export class AgentNetwork {
     };
 
     this.messageHistory.push(fullMessage);
+    // 限制历史记录大小
+    if (this.messageHistory.length > this.maxHistorySize) {
+      this.messageHistory = this.messageHistory.slice(-this.maxHistorySize);
+    }
 
     // 分发给目标
     if (message.to === 'broadcast') {
@@ -277,9 +282,7 @@ export class AgentNetwork {
     if (!task) return false;
 
     // 查找可用的在线 Agent
-    const availableAgents = this.getOnlineAgents().filter(
-      (a) => a.status === 'online',
-    );
+    const availableAgents = this.getOnlineAgents();
 
     if (availableAgents.length === 0) {
       logger.warn('No available agents for task assignment');
@@ -323,6 +326,29 @@ export class AgentNetwork {
       failedTasks: tasks.filter((t) => t.status === 'failed').length,
       pendingTasks: tasks.filter((t) => t.status === 'pending').length,
     };
+  }
+
+  /**
+   * 清理已完成的任务
+   * 保留最近 maxKeep 条已完成/失败的任务记录
+   */
+  cleanupTasks(maxKeep = 100): number {
+    const completed = this.getAllTasks().filter(
+      (t) => t.status === 'completed' || t.status === 'failed',
+    );
+
+    if (completed.length <= maxKeep) return 0;
+
+    // 按时间排序，保留最新的
+    completed.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    const toRemove = completed.slice(maxKeep);
+
+    for (const task of toRemove) {
+      this.tasks.delete(task.id);
+    }
+
+    logger.debug(`Cleaned up ${toRemove.length} old tasks`);
+    return toRemove.length;
   }
 
   private generateId(): string {

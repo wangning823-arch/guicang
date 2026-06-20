@@ -150,6 +150,9 @@ export class MessageQueue {
       if (idx !== -1) queue.splice(idx, 1);
 
       logger.debug(`Message processed: ${topic}`);
+
+      // 处理下一条消息
+      this.processNext(topic);
     } catch (error) {
       message.status = message.attempts < message.maxAttempts ? 'retrying' : 'failed';
       message.error = error instanceof Error ? error.message : String(error);
@@ -176,15 +179,13 @@ export class MessageQueue {
   getQueueStatus(topic: string): {
     pending: number;
     processing: number;
-    completed: number;
-    failed: number;
+    retrying: number;
   } {
     const queue = this.queues.get(topic) ?? [];
     return {
       pending: queue.filter((m) => m.status === 'pending').length,
       processing: queue.filter((m) => m.status === 'processing').length,
-      completed: queue.filter((m) => m.status === 'completed').length,
-      failed: queue.filter((m) => m.status === 'failed').length,
+      retrying: queue.filter((m) => m.status === 'retrying').length,
     };
   }
 
@@ -203,6 +204,7 @@ export class MessageQueue {
       this.queues.delete(topic);
     } else {
       this.queues.clear();
+      this.processing.clear();
     }
   }
 
