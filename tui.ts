@@ -141,7 +141,10 @@ async function main() {
   const rightWidth = width - rightX - 1;
   const mainHeight = height - 4;
   const bottomY = height - 4;
-  const inputY = height - 5; // 输入行：聊天框底部边框下方一行
+  // 输入行位置：在聊天框内部，底部边框上方一行
+  // Box 从 y=1 开始，高度 mainHeight-2，所以底部边框在 y=1+(mainHeight-2)-1 = mainHeight-2
+  // 输入行应该在底部边框上方：mainHeight-3
+  const inputY = mainHeight - 3;
 
   // 创建面板
   let isProcessing = false;
