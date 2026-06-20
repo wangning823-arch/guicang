@@ -72,19 +72,30 @@ export interface KeyEvent {
   name: string;
 }
 
+/** 缓冲区单元格（字符 + 颜色） */
+interface Cell {
+  char: string;
+  color: string;
+}
+
 /** 渲染上下文 */
 export interface RenderContext {
-  buffer: string[][];
+  buffer: Cell[][];
   width: number;
   height: number;
+}
+
+/** 创建空单元格 */
+function emptyCell(): Cell {
+  return { char: ' ', color: Colors.white };
 }
 
 /** TUI 引擎 */
 export class TUIEngine {
   private width = 0;
   private height = 0;
-  private buffer: string[][] = [];
-  private prevBuffer: string[][] = [];
+  private buffer: Cell[][] = [];
+  private prevBuffer: Cell[][] = [];
   private running = false;
   private keyHandlers = new Map<string, (event: KeyEvent) => void>();
   private panelHandlers: Array<(event: KeyEvent) => void> = [];
@@ -150,10 +161,10 @@ export class TUIEngine {
   }
 
   /** 创建空缓冲区 */
-  private createBuffer(): string[][] {
-    const buffer: string[][] = [];
+  private createBuffer(): Cell[][] {
+    const buffer: Cell[][] = [];
     for (let y = 0; y < this.height; y++) {
-      buffer.push(new Array(this.width).fill(' '));
+      buffer.push(new Array(this.width).fill(null).map(() => emptyCell()));
     }
     return buffer;
   }
@@ -207,59 +218,95 @@ export class TUIEngine {
   clearBuffer(): void {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
-        this.buffer[y][x] = ' ';
+        this.buffer[y][x] = emptyCell();
       }
     }
   }
 
   /** 在指定位置写入字符 */
-  putChar(x: number, y: number, char: string): void {
+  putChar(x: number, y: number, char: string, color: string = Colors.white): void {
     if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-      this.buffer[y][x] = char;
+      this.buffer[y][x] = { char, color };
     }
   }
 
   /** 在指定位置写入文本 */
-  putText(x: number, y: number, text: string): void {
+  putText(x: number, y: number, text: string, color: string = Colors.white): void {
     let currentX = x;
 
     // 逐字符写入（处理多字节字符）
     for (const char of text) {
       if (currentX < this.width && y >= 0 && y < this.height) {
-        this.buffer[y][currentX] = char;
+        this.buffer[y][currentX] = { char, color };
         // 宽字符在终端中自动占用2列，只需跳过一个位置
         currentX += getCharWidth(char);
       }
     }
   }
 
-  /** 在指定位置写入带颜色的文本 */
-  putColorText(x: number, y: number, text: string, _color: string): void {
+  /**
+   * 在指定位置写入带颜色的文本
+   * 文本可以包含 ANSI 转义序列，颜色会正确解析和存储
+   */
+  putColorText(x: number, y: number, text: string, defaultColor: string = Colors.white): void {
     if (y < 0 || y >= this.height) return;
 
     let currentX = x;
-    let inEscape = false;
+    let currentColor = defaultColor;
+    let i = 0;
 
-    for (let i = 0; i < text.length; i++) {
+    while (i < text.length) {
       const char = text[i];
 
-      if (char === '\x1b') {
-        inEscape = true;
-        continue;
-      }
+      // 解析 ANSI 转义序列
+      if (char === '\x1b' && i + 1 < text.length && text[i + 1] === '[') {
+        // 找到 'm' 结束符
+        let j = i + 2;
+        while (j < text.length && text[j] !== 'm') j++;
 
-      if (inEscape) {
-        if (char === 'm') {
-          inEscape = false;
+        if (j < text.length && text[j] === 'm') {
+          // 提取参数
+          const params = text.slice(i + 2, j);
+          if (params === '0' || params === '') {
+            currentColor = defaultColor; // 重置
+          } else {
+            // 解析 SGR 参数
+            const codes = params.split(';').map(Number);
+            for (const code of codes) {
+              if (code >= 30 && code <= 37) {
+                // 前景色
+                const colorMap: Record<number, string> = {
+                  30: Colors.black, 31: Colors.red, 32: Colors.green,
+                  33: Colors.yellow, 34: Colors.blue, 35: Colors.magenta,
+                  36: Colors.cyan, 37: Colors.white,
+                };
+                currentColor = colorMap[code] || defaultColor;
+              } else if (code >= 90 && code <= 97) {
+                // 亮前景色
+                const colorMap: Record<number, string> = {
+                  90: Colors.darkGray, 91: Colors.brightRed, 92: Colors.brightGreen,
+                  93: Colors.brightYellow, 94: Colors.brightBlue, 95: Colors.brightMagenta,
+                  96: Colors.brightCyan, 97: Colors.brightWhite,
+                };
+                currentColor = colorMap[code] || defaultColor;
+              } else if (code === 1) {
+                // bold - 保持颜色，后续可扩展
+              } else if (code === 2) {
+                // dim - 保持颜色
+              }
+            }
+          }
+          i = j + 1;
+          continue;
         }
-        continue;
       }
 
+      // 写入字符（带颜色）
       if (currentX >= 0 && currentX < this.width) {
-        this.buffer[y][currentX] = char;
-        // 宽字符在终端中自动占用2列
+        this.buffer[y][currentX] = { char, color: currentColor };
         currentX += getCharWidth(char);
       }
+      i++;
     }
   }
 
@@ -289,9 +336,8 @@ export class TUIEngine {
     // 填充背景
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
-        const pos = y * this.width + x + col + row * this.width;
-        if (pos >= 0 && pos < this.width * this.height) {
-          this.putColorText(x + col, y + row, ' ', bgColor);
+        if (x + col >= 0 && x + col < this.width && y + row >= 0 && y + row < this.height) {
+          this.buffer[y + row][x + col] = { char: ' ', color: bgColor };
         }
       }
     }
@@ -301,43 +347,57 @@ export class TUIEngine {
   }
 
   /** 填充区域 */
-  fillRect(rect: Rect, char: string = ' '): void {
+  fillRect(rect: Rect, char: string = ' ', color: string = Colors.white): void {
     const { x, y, width, height } = rect;
 
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
-        this.putChar(x + col, y + row, char);
+        this.putChar(x + col, y + row, char, color);
       }
     }
   }
 
   /** 清空区域 */
   clearRect(rect: Rect): void {
-    this.fillRect(rect, ' ');
+    this.fillRect(rect, ' ', Colors.white);
   }
 
   /** 渲染差异（只更新变化的字符） */
   private renderDiff(): void {
     let output = '';
+    let lastColor = '';
 
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const current = this.buffer[y][x];
         const prev = this.prevBuffer[y]?.[x];
 
-        if (current !== prev) {
+        // 比较字符和颜色
+        if (current.char !== prev.char || current.color !== prev.color) {
+          // 颜色变化时插入颜色代码
+          if (current.color !== lastColor) {
+            output += current.color;
+            lastColor = current.color;
+          }
           // 移动光标并写入字符
-          output += `\x1b[${y + 1};${x + 1}H${current}`;
+          output += `\x1b[${y + 1};${x + 1}H${current.char}`;
         }
       }
+    }
+
+    // 重置颜色
+    if (lastColor !== Colors.reset) {
+      output += Colors.reset;
     }
 
     if (output) {
       process.stdout.write(output);
     }
 
-    // 保存当前缓冲区
-    this.prevBuffer = this.buffer.map((row) => [...row]);
+    // 保存当前缓冲区（深拷贝）
+    this.prevBuffer = this.buffer.map((row) =>
+      row.map((cell) => ({ ...cell }))
+    );
   }
 
   /** 完整重绘 */

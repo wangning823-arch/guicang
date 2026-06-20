@@ -30,13 +30,16 @@ export class ChatPanel {
   private options: ChatPanelOptions;
   private isActive = false;
   private isProcessing = false;
+  private inputFixedY: number; // 输入行固定 Y 坐标
 
-  constructor(x: number, y: number, width: number, height: number, options: ChatPanelOptions = {}, accentColor?: string) {
+  constructor(x: number, y: number, width: number, height: number, options: ChatPanelOptions = {}, accentColor?: string, inputY?: number) {
     this.box = new BoxComponent(
       { x, y, width, height },
       { title: '💬 对话', border: true, active: false, accentColor },
     );
     this.options = options;
+    // 输入行固定在指定位置，或默认在 box 底部
+    this.inputFixedY = inputY ?? (y + height - 1);
   }
 
   /** 添加消息 */
@@ -285,8 +288,8 @@ export class ChatPanel {
   render(engine: TUIEngine): void {
     this.box.render(engine);
 
-    // 渲染输入框
-    const inputY = this.box.rect.y + this.box.rect.height - 1;
+    // 渲染输入框（固定位置）
+    const inputY = this.inputFixedY;
     const inputX = this.box.rect.x + 1;
     const inputWidth = this.box.rect.width - 2;
 

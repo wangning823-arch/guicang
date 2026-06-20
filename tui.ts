@@ -130,11 +130,13 @@ async function main() {
   const rightWidth = width - rightX - 1;
   const mainHeight = height - 4;
   const bottomY = height - 4;
+  const inputY = height - 5; // 输入行：聊天框底部边框下方一行
 
   // 创建面板
   let isProcessing = false;
 
-  const chatPanel = new ChatPanel(1, 1, chatWidth, mainHeight, {
+  // 聊天面板高度减2：底部边框占1行，输入行占1行
+  const chatPanel = new ChatPanel(1, 1, chatWidth, mainHeight - 2, {
     onSend: async (msg) => {
       if (isProcessing) return;
 
@@ -167,7 +169,7 @@ async function main() {
         engine.render();
       }
     },
-  }, Theme.chatPanel);
+  }, Theme.chatPanel, inputY);
 
   // 右侧面板
   const statusPanelHeight = 8;
