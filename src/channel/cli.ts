@@ -1,6 +1,7 @@
 /**
  * CLI 渠道
  * 通过标准输入/输出与用户交互
+ * 支持交互式终端和管道输入两种模式
  */
 
 import * as readline from 'node:readline';
@@ -11,6 +12,7 @@ export class CLIChannel extends BaseChannel {
   readonly type = 'cli';
   private rl: readline.Interface | null = null;
   private logger = new Logger('channel:cli');
+  private isInteractive = process.stdin.isTTY;
 
   async start(): Promise<void> {
     this.running = true;
@@ -21,11 +23,15 @@ export class CLIChannel extends BaseChannel {
       prompt: '你> ',
     });
 
-    this.logger.info('CLI channel started');
+    this.logger.info('CLI channel started', { interactive: this.isInteractive });
 
     // 显示欢迎消息
     console.log('\n🌊 归藏 (Guicang) — 万物归藏，一念即达');
-    console.log('   输入消息与 Agent 对话，输入 /quit 退出\n');
+    if (this.isInteractive) {
+      console.log('   输入消息与 Agent 对话，输入 /quit 退出\n');
+    } else {
+      console.log('   非交互模式：从 stdin 读取输入\n');
+    }
 
     this.rl.prompt();
 
@@ -40,7 +46,9 @@ export class CLIChannel extends BaseChannel {
 
       // 空输入忽略
       if (!input) {
-        this.rl?.prompt();
+        if (this.isInteractive) {
+          this.rl?.prompt();
+        }
         return;
       }
 
@@ -72,7 +80,9 @@ export class CLIChannel extends BaseChannel {
         console.error('\n❌ Error:', error instanceof Error ? error.message : error);
       }
 
-      this.rl?.prompt();
+      if (this.isInteractive) {
+        this.rl?.prompt();
+      }
     });
 
     this.rl.on('close', () => {
