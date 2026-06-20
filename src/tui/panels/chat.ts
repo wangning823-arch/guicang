@@ -405,6 +405,9 @@ export class ChatPanel {
     const inputX = this.box.rect.x + 1;
     const inputWidth = this.box.rect.width - 2;
 
+    // 调试：显示 inputY 位置
+    engine.putColorText(0, 0, ` inputY=${inputY} box.y=${this.box.rect.y} box.h=${this.box.rect.height} `, '\x1b[91m');
+
     // 清空输入行
     engine.fillRect({ x: inputX, y: inputY, width: inputWidth, height: 1 }, ' ');
 
