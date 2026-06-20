@@ -41,8 +41,8 @@ export class ProgressBar {
     const filled = Math.round((this.options.width! * percent) / 100);
     const empty = this.options.width! - filled;
 
-    const filledBar = colorize('█'.repeat(filled), this.options.color!);
-    const emptyBar = colorize('░'.repeat(empty), this.options.bgColor!);
+    const filledBar = colorize('#'.repeat(filled), this.options.color!);
+    const emptyBar = colorize('.'.repeat(empty), this.options.bgColor!);
 
     let result = filledBar + emptyBar;
 
@@ -80,9 +80,9 @@ export class StatusIndicator {
     };
 
     const symbols = {
-      healthy: '●',
-      degraded: '◐',
-      unhealthy: '○',
+      healthy: '*',
+      degraded: 'o',
+      unhealthy: '.',
     };
 
     return colorize(symbols[this.status], colors[this.status]) + ' ' + this.label;
@@ -117,7 +117,7 @@ export class Sparkline {
     const min = Math.min(...this.data);
     const range = max - min || 1;
 
-    const blockChars = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+    const blockChars = ['_', '.', ':', '=', '+', '*', '#', '@'];
 
     // 只取最后 width 个数据点
     const displayData = this.data.slice(-this.options.width!);

@@ -44,7 +44,7 @@ export class MetricsPanel {
   constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '📈 性能指标', border: true, accentColor },
+      { title: '[MET] 性能指标', border: true, accentColor },
     );
   }
 

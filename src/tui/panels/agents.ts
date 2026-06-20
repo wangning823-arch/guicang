@@ -25,7 +25,7 @@ export class AgentsPanel {
   constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '🤖 Agent 列表', border: true, accentColor },
+      { title: '[AGT] Agent 列表', border: true, accentColor },
     );
   }
 
@@ -101,7 +101,7 @@ export class AgentsPanel {
 
         // Agent 信息
         const name = isSelected
-          ? colorize(`▸ ${agent.name}`, Theme.accent)
+          ? colorize(`> ${agent.name}`, Theme.accent)
           : `  ${agent.name}`;
 
         const statusText = colorize(

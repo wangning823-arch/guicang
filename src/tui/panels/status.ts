@@ -38,7 +38,7 @@ export class StatusPanel {
   constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '📊 系统状态', border: true, accentColor },
+      { title: '[SYS] 系统状态', border: true, accentColor },
     );
   }
 

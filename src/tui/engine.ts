@@ -7,41 +7,64 @@ import * as readline from 'node:readline';
 import { Colors, colorize } from './theme.js';
 
 /**
- * 获取字符的显示宽度
+ * 获取字符的显示宽度（统一版本）
  * 中文字符和全角字符占2个宽度，其他占1个
  */
 function getCharWidth(char: string): number {
   const code = char.codePointAt(0);
   if (!code) return 1;
 
-  // CJK统一汉字及其扩展
+  // ===== CJK 统一汉字及其扩展 =====
   if (
     (code >= 0x4E00 && code <= 0x9FFF) ||   // CJK统一汉字
     (code >= 0x3400 && code <= 0x4DBF) ||   // CJK扩展A
     (code >= 0x20000 && code <= 0x2A6DF) || // CJK扩展B
+    (code >= 0x2A700 && code <= 0x2B73F) || // CJK扩展C
+    (code >= 0x2B740 && code <= 0x2B81F) || // CJK扩展D
+    (code >= 0x2B820 && code <= 0x2CEAF) || // CJK扩展E
+    (code >= 0x2CEB0 && code <= 0x2EBEF) || // CJK扩展F
+    (code >= 0x30000 && code <= 0x3134F) || // CJK扩展G
+    (code >= 0x31350 && code <= 0x323AF) || // CJK扩展H
     (code >= 0xF900 && code <= 0xFAFF) ||   // CJK兼容汉字
     (code >= 0x2F800 && code <= 0x2FA1F)    // CJK兼容补充
   ) {
     return 2;
   }
 
-  // 全角ASCII空格和标点
+  // ===== CJK 标点和符号 =====
   if (
+    (code >= 0x3000 && code <= 0x303F) ||   // CJK符号和标点（。、！？等）
     (code >= 0xFF01 && code <= 0xFF60) ||   // 全角ASCII
     (code >= 0xFFE0 && code <= 0xFFE6) ||   // 全角货币
-    (code >= 0x3000 && code <= 0x303F) ||   // CJK符号和标点
-    (code >= 0xFE30 && code <= 0xFE4F)      // CJK兼容形式
+    (code >= 0xFE30 && code <= 0xFE4F) ||   // CJK兼容形式
+    (code >= 0x3100 && code <= 0x312F) ||   // 注音符号
+    (code >= 0x31A0 && code <= 0x31BF) ||   // 注音扩展
+    (code >= 0x3200 && code <= 0x32FF)      // 封闭式CJK文字
   ) {
     return 2;
   }
 
-  // Emoji和其他特殊字符
+  // ===== Emoji =====
   if (
     (code >= 0x1F300 && code <= 0x1F9FF) || // Emoji
-    (code >= 0x2600 && code <= 0x27BF) ||   // 杂项符号
+    (code >= 0x1FA00 && code <= 0x1FA6F) || // Emoji扩展A
+    (code >= 0x1FA70 && code <= 0x1FAFF) || // Emoji扩展B
     (code >= 0x1F600 && code <= 0x1F64F) || // 表情符号
     (code >= 0x1F680 && code <= 0x1F6FF) || // 交通和地图符号
-    (code >= 0x1F1E0 && code <= 0x1F1FF)    // 旗帜符号
+    (code >= 0x1F1E0 && code <= 0x1F1FF) || // 旗帜符号
+    (code >= 0x2600 && code <= 0x27BF) ||   // 杂项符号
+    (code >= 0x2300 && code <= 0x23FF) ||   // 技术符号
+    (code >= 0x2B50 && code <= 0x2B55) ||   // 星号和圆圈
+    (code >= 0x203C && code <= 0x3299)      // CJK特殊符号
+  ) {
+    return 2;
+  }
+
+  // ===== 宽字符块元素 =====
+  if (
+    (code >= 0x2580 && code <= 0x259F) ||   // 块元素（含 █）
+    (code >= 0x25A0 && code <= 0x25FF) ||   // 几何形状
+    (code >= 0x2B00 && code <= 0x2BFF)      // 杂项符号和箭头
   ) {
     return 2;
   }
@@ -76,6 +99,7 @@ export interface KeyEvent {
 interface Cell {
   char: string;
   color: string;
+  wideContinuation?: boolean; // 标记宽字符的第二列
 }
 
 /** 渲染上下文 */
@@ -234,13 +258,16 @@ export class TUIEngine {
   putText(x: number, y: number, text: string, color: string = Colors.white): void {
     let currentX = x;
 
-    // 逐字符写入（处理多字节字符）
     for (const char of text) {
-      if (currentX < this.width && y >= 0 && y < this.height) {
+      const charWidth = getCharWidth(char);
+      if (currentX >= 0 && currentX < this.width && y >= 0 && y < this.height) {
         this.buffer[y][currentX] = { char, color };
-        // 宽字符在终端中自动占用2列，只需跳过一个位置
-        currentX += getCharWidth(char);
+        // 宽字符：第二列标记为延续，不单独渲染
+        if (charWidth === 2 && currentX + 1 < this.width) {
+          this.buffer[y][currentX + 1] = { char: '', color, wideContinuation: true };
+        }
       }
+      currentX += charWidth;
     }
   }
 
@@ -274,7 +301,6 @@ export class TUIEngine {
             const codes = params.split(';').map(Number);
             for (const code of codes) {
               if (code >= 30 && code <= 37) {
-                // 前景色
                 const colorMap: Record<number, string> = {
                   30: Colors.black, 31: Colors.red, 32: Colors.green,
                   33: Colors.yellow, 34: Colors.blue, 35: Colors.magenta,
@@ -282,17 +308,12 @@ export class TUIEngine {
                 };
                 currentColor = colorMap[code] || defaultColor;
               } else if (code >= 90 && code <= 97) {
-                // 亮前景色
                 const colorMap: Record<number, string> = {
                   90: Colors.darkGray, 91: Colors.brightRed, 92: Colors.brightGreen,
                   93: Colors.brightYellow, 94: Colors.brightBlue, 95: Colors.brightMagenta,
                   96: Colors.brightCyan, 97: Colors.brightWhite,
                 };
                 currentColor = colorMap[code] || defaultColor;
-              } else if (code === 1) {
-                // bold - 保持颜色，后续可扩展
-              } else if (code === 2) {
-                // dim - 保持颜色
               }
             }
           }
@@ -302,10 +323,15 @@ export class TUIEngine {
       }
 
       // 写入字符（带颜色）
+      const charWidth = getCharWidth(char);
       if (currentX >= 0 && currentX < this.width) {
         this.buffer[y][currentX] = { char, color: currentColor };
-        currentX += getCharWidth(char);
+        // 宽字符：第二列标记为延续
+        if (charWidth === 2 && currentX + 1 < this.width) {
+          this.buffer[y][currentX + 1] = { char: '', color: currentColor, wideContinuation: true };
+        }
       }
+      currentX += charWidth;
       i++;
     }
   }
@@ -370,6 +396,12 @@ export class TUIEngine {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const current = this.buffer[y][x];
+
+        // 跳过宽字符的延续列
+        if (current.wideContinuation) {
+          continue;
+        }
+
         const prev = this.prevBuffer[y]?.[x];
 
         // 比较字符和颜色

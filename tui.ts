@@ -99,7 +99,7 @@ async function main() {
   // 验证配置
   const isValid = await provider.validate();
   if (!isValid) {
-    console.error('❌ API Key 无效。请设置 ANTHROPIC_AUTH_TOKEN 环境变量。');
+    console.error('[ERR] API Key 无效。请设置 ANTHROPIC_AUTH_TOKEN 环境变量。');
     process.exit(1);
   }
 
@@ -134,6 +134,12 @@ async function main() {
 
   // 创建面板
   let isProcessing = false;
+  const startTime = Date.now();
+  let totalRequests = 0;
+  let successRequests = 0;
+  let failedRequests = 0;
+  let totalLatency = 0;
+  let chatHistory: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string; toolCallId?: string }> = [];
 
   // 聊天面板高度减2：底部边框占1行，输入行占1行
   const chatPanel = new ChatPanel(1, 1, chatWidth, mainHeight - 2, {
@@ -142,10 +148,37 @@ async function main() {
 
       isProcessing = true;
       chatPanel.setProcessing(true);
+      const reqStart = Date.now();
       engine.render();
 
       try {
-        const result = await agent.run(msg);
+        const result = await agent.runWithHistory(chatHistory, msg);
+        const reqLatency = Date.now() - reqStart;
+        totalRequests++;
+        successRequests++;
+        totalLatency += reqLatency;
+
+        // 更新状态面板
+        statusPanel.updateData({
+          uptime: Date.now() - startTime,
+          agents: { total: 1, online: 1, busy: 0 },
+        });
+
+        // 更新性能面板
+        metricsPanel.recordRequest(true);
+        metricsPanel.recordLatency(reqLatency);
+        if (result.totalUsage) {
+          metricsPanel.recordTokens(result.totalUsage.promptTokens, result.totalUsage.completionTokens);
+        }
+
+        // 更新 Token 面板
+        if (result.totalUsage) {
+          tokensPanel.recordUsage(result.totalUsage.promptTokens, result.totalUsage.completionTokens);
+        }
+        tokensPanel.updateContext({
+          messages: result.messages.length,
+        });
+
         const lastAssistant = result.messages
           .filter((m) => m.role === 'assistant')
           .pop();
@@ -157,10 +190,16 @@ async function main() {
             timestamp: new Date(),
           });
         }
+
+        // 保存对话历史（排除 system 消息，避免重复添加）
+        chatHistory = result.messages.filter((m) => m.role !== 'system');
       } catch (error) {
+        totalRequests++;
+        failedRequests++;
+        metricsPanel.recordRequest(false);
         chatPanel.addMessage({
           role: 'assistant',
-          content: `❌ 错误: ${error instanceof Error ? error.message : String(error)}`,
+          content: `[ERR] ${error instanceof Error ? error.message : String(error)}`,
           timestamp: new Date(),
         });
       } finally {
@@ -196,6 +235,22 @@ async function main() {
     });
   });
 
+  // 定时更新系统指标（每2秒）
+  setInterval(() => {
+    const mem = process.memoryUsage();
+    statusPanel.updateData({
+      uptime: Date.now() - startTime,
+      memory: {
+        used: mem.heapUsed,
+        total: mem.heapTotal,
+        heap: mem.heapUsed,
+        heapTotal: mem.heapTotal,
+      },
+      agents: { total: 1, online: 1, busy: isProcessing ? 1 : 0 },
+    });
+    engine.render();
+  }, 2000);
+
   // 帮助面板（居中）
   const helpWidth = Math.min(60, Math.floor(width * 0.8));
   const helpHeight = Math.min(20, Math.floor(height * 0.7));
@@ -206,29 +261,17 @@ async function main() {
   // 添加欢迎消息
   chatPanel.addMessage({
     role: 'system',
-    content: '欢迎使用归藏 TUI！\n\n我已准备就绪，可以帮你完成以下任务：\n- 📄 读取文件内容\n- ✏️ 写入文件\n- 🖥️ 执行 Shell 命令\n\n试试输入一些指令吧！',
+    content: '欢迎使用归藏 TUI！\n\n我已准备就绪，可以帮你完成以下任务：\n- [F] 读取文件内容\n- [W] 写入文件\n- [S] 执行 Shell 命令\n\n试试输入一些指令吧！',
     timestamp: new Date(),
   });
 
-  // 激活聊天面板
+  // 聊天面板始终激活（光标始终在输入行）
   chatPanel.setActive(true);
-  let currentPanel = 0;
-  const panels = [chatPanel, statusPanel, metricsPanel, tokensPanel];
   let showHelp = false;
 
-  // 注册面板按键处理（用于输入捕获）
+  // 所有键盘输入始终发送到聊天面板
   engine.onPanelKey((event) => {
-    if (currentPanel === 0) {
-      chatPanel.handleKey(event);
-    }
-  });
-
-  // 注册按键处理
-  engine.onKey('tab', () => {
-    panels[currentPanel].setActive(false);
-    currentPanel = (currentPanel + 1) % panels.length;
-    panels[currentPanel].setActive(true);
-    engine.render();
+    chatPanel.handleKey(event);
   });
 
   engine.onKey('q', () => {
@@ -256,7 +299,7 @@ async function main() {
     engine.clearBuffer();
 
     // 渲染标题
-    const title = '🌊 归藏 TUI — 万物归藏，一念即达';
+    const title = '~~ 归藏 TUI -- 万物归藏，一念即达';
     const titleWidth = getStringWidth(title);
     const titleX = Math.floor((width - titleWidth) / 2);
     engine.putColorText(titleX, 0, colorize(title, Theme.accent), Theme.accent);
@@ -287,6 +330,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('❌ TUI 启动失败:', error);
+  console.error('[ERR] TUI 启动失败:', error);
   process.exit(1);
 });

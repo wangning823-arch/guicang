@@ -28,7 +28,7 @@ export class ToolsPanel {
   constructor(x: number, y: number, width: number, height: number, options: ToolsPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '🔧 最近工具', border: true, accentColor },
+      { title: '[TOOL] 最近工具', border: true, accentColor },
     );
     this.maxEntries = options.maxEntries ?? 20;
   }
@@ -43,7 +43,7 @@ export class ToolsPanel {
     }
 
     // 格式化工具调用
-    const statusIcon = entry.success ? colorize('✓', Theme.success) : colorize('✗', Theme.error);
+    const statusIcon = entry.success ? colorize('[OK]', Theme.success) : colorize('[FAIL]', Theme.error);
     const duration = entry.duration < 1000
       ? `${entry.duration}ms`
       : `${(entry.duration / 1000).toFixed(1)}s`;

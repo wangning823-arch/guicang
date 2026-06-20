@@ -22,6 +22,74 @@ export interface ChatPanelOptions {
   onSend?: (message: string) => void;
 }
 
+/**
+ * 获取字符的显示宽度（统一版本）
+ * 中文字符和全角字符占2个宽度，其他占1个
+ */
+function getCharWidth(char: string): number {
+  const code = char.codePointAt(0);
+  if (!code) return 1;
+
+  // ===== CJK 统一汉字及其扩展 =====
+  if (
+    (code >= 0x4E00 && code <= 0x9FFF) ||   // CJK统一汉字
+    (code >= 0x3400 && code <= 0x4DBF) ||   // CJK扩展A
+    (code >= 0x20000 && code <= 0x2A6DF) || // CJK扩展B
+    (code >= 0x2A700 && code <= 0x2B73F) || // CJK扩展C
+    (code >= 0x2B740 && code <= 0x2B81F) || // CJK扩展D
+    (code >= 0x2B820 && code <= 0x2CEAF) || // CJK扩展E
+    (code >= 0x2CEB0 && code <= 0x2EBEF) || // CJK扩展F
+    (code >= 0x30000 && code <= 0x3134F) || // CJK扩展G
+    (code >= 0x31350 && code <= 0x323AF) || // CJK扩展H
+    (code >= 0xF900 && code <= 0xFAFF) ||   // CJK兼容汉字
+    (code >= 0x2F800 && code <= 0x2FA1F)    // CJK兼容补充
+  ) {
+    return 2;
+  }
+
+  // ===== CJK 标点和符号 =====
+  if (
+    (code >= 0x3000 && code <= 0x303F) ||   // CJK符号和标点（。、！？等）
+    (code >= 0xFF01 && code <= 0xFF60) ||   // 全角ASCII
+    (code >= 0xFFE0 && code <= 0xFFE6) ||   // 全角货币
+    (code >= 0xFE30 && code <= 0xFE4F) ||   // CJK兼容形式
+    (code >= 0x3100 && code <= 0x312F) ||   // 注音符号
+    (code >= 0x31A0 && code <= 0x31BF) ||   // 注音扩展
+    (code >= 0x3200 && code <= 0x32FF) ||   // 封闭式CJK文字
+    (code >= 0x3400 && code <= 0x4DBF) ||   // CJK扩展A（重复但无害）
+    (code >= 0x4E00 && code <= 0x9FFF)      // CJK统一汉字（重复但无害）
+  ) {
+    return 2;
+  }
+
+  // ===== Emoji =====
+  if (
+    (code >= 0x1F300 && code <= 0x1F9FF) || // Emoji
+    (code >= 0x1FA00 && code <= 0x1FA6F) || // Emoji扩展A
+    (code >= 0x1FA70 && code <= 0x1FAFF) || // Emoji扩展B
+    (code >= 0x1F600 && code <= 0x1F64F) || // 表情符号
+    (code >= 0x1F680 && code <= 0x1F6FF) || // 交通和地图符号
+    (code >= 0x1F1E0 && code <= 0x1F1FF) || // 旗帜符号
+    (code >= 0x2600 && code <= 0x27BF) ||   // 杂项符号
+    (code >= 0x2300 && code <= 0x23FF) ||   // 技术符号
+    (code >= 0x2B50 && code <= 0x2B55) ||   // 星号和圆圈
+    (code >= 0x203C && code <= 0x3299)      // CJK特殊符号
+  ) {
+    return 2;
+  }
+
+  // ===== 宽字符块元素 =====
+  if (
+    (code >= 0x2580 && code <= 0x259F) ||   // 块元素（含 █）
+    (code >= 0x25A0 && code <= 0x25FF) ||   // 几何形状
+    (code >= 0x2B00 && code <= 0x2BFF)      // 杂项符号和箭头
+  ) {
+    return 2;
+  }
+
+  return 1;
+}
+
 export class ChatPanel {
   private box: BoxComponent;
   private messages: ChatMessage[] = [];
@@ -35,7 +103,7 @@ export class ChatPanel {
   constructor(x: number, y: number, width: number, height: number, options: ChatPanelOptions = {}, accentColor?: string, inputY?: number) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '💬 对话', border: true, active: false, accentColor },
+      { title: '[CHAT] 对话', border: true, active: false, accentColor },
     );
     this.options = options;
     // 输入行固定在指定位置，或默认在 box 底部
@@ -48,7 +116,7 @@ export class ChatPanel {
 
     // 格式化消息
     const timestamp = this.formatTime(message.timestamp);
-    const roleIcon = message.role === 'user' ? '👤' : message.role === 'assistant' ? '🤖' : 'ℹ️';
+    const roleIcon = message.role === 'user' ? '[U]' : message.role === 'assistant' ? '[AI]' : '[i]';
     const roleColor = message.role === 'user' ? Theme.primary : Theme.secondary;
 
     // 添加消息头
@@ -70,7 +138,7 @@ export class ChatPanel {
     // 添加工具调用信息
     if (message.toolCalls && message.toolCalls.length > 0) {
       for (const tool of message.toolCalls) {
-        const toolIcon = tool.result ? '✅' : '⏳';
+        const toolIcon = tool.result ? '[OK]' : '...';
         this.box.appendLine(
           colorize(`    └─ ${toolIcon} 调用 ${tool.name}`, Theme.textMuted),
         );
@@ -119,7 +187,7 @@ export class ChatPanel {
       // 计算段落的显示宽度
       let lineWidth = 0;
       for (const char of paragraph) {
-        lineWidth += this.getCharWidth(char);
+        lineWidth += getCharWidth(char);
       }
 
       if (lineWidth <= maxWidth) {
@@ -130,7 +198,7 @@ export class ChatPanel {
         let currentWidth = 0;
 
         for (const char of paragraph) {
-          const charWidth = this.getCharWidth(char);
+          const charWidth = getCharWidth(char);
 
           if (currentWidth + charWidth > maxWidth) {
             // 尝试在空格处换行
@@ -141,7 +209,7 @@ export class ChatPanel {
               currentWidth = 0;
               // 重新计算当前行宽度
               for (const c of currentLine) {
-                currentWidth += this.getCharWidth(c);
+                currentWidth += getCharWidth(c);
               }
             } else {
               lines.push(currentLine);
@@ -163,51 +231,11 @@ export class ChatPanel {
     return lines;
   }
 
-  /** 获取字符显示宽度 */
-  private getCharWidth(char: string): number {
-    const code = char.codePointAt(0);
-    if (!code) return 1;
-
-    // CJK统一汉字
-    if (
-      (code >= 0x4E00 && code <= 0x9FFF) ||
-      (code >= 0x3400 && code <= 0x4DBF) ||
-      (code >= 0x20000 && code <= 0x2A6DF) ||
-      (code >= 0xF900 && code <= 0xFAFF) ||
-      (code >= 0x2F800 && code <= 0x2FA1F)
-    ) {
-      return 2;
-    }
-
-    // 全角字符
-    if (
-      (code >= 0xFF01 && code <= 0xFF60) ||
-      (code >= 0xFFE0 && code <= 0xFFE6) ||
-      (code >= 0x3000 && code <= 0x303F) ||
-      (code >= 0xFE30 && code <= 0xFE4F)
-    ) {
-      return 2;
-    }
-
-    // Emoji和特殊符号
-    if (
-      (code >= 0x1F300 && code <= 0x1F9FF) ||
-      (code >= 0x2600 && code <= 0x27BF) ||
-      (code >= 0x1F600 && code <= 0x1F64F) ||
-      (code >= 0x1F680 && code <= 0x1F6FF) ||
-      (code >= 0x1F1E0 && code <= 0x1F1FF)
-    ) {
-      return 2;
-    }
-
-    return 1;
-  }
-
   /** 获取字符串显示宽度 */
   private getStringWidth(str: string): number {
     let width = 0;
     for (const char of str) {
-      width += this.getCharWidth(char);
+      width += getCharWidth(char);
     }
     return width;
   }
@@ -298,7 +326,7 @@ export class ChatPanel {
 
     if (this.isProcessing) {
       // 显示处理中状态
-      const loadingText = '⏳ 正在思考...';
+      const loadingText = '... 正在思考 ...';
       engine.putColorText(inputX, inputY, colorize(loadingText, Theme.warning), Theme.warning);
     } else {
       // 绘制输入提示
@@ -313,7 +341,7 @@ export class ChatPanel {
       let displayInput = '';
       let currentWidth = 0;
       for (const char of this.inputBuffer) {
-        const charWidth = this.getCharWidth(char);
+        const charWidth = getCharWidth(char);
         if (currentWidth + charWidth > availableWidth) break;
         displayInput += char;
         currentWidth += charWidth;
@@ -322,14 +350,16 @@ export class ChatPanel {
       // 绘制输入内容
       engine.putColorText(inputX + promptWidth, inputY, displayInput, Theme.text);
 
-      // 绘制光标（计算光标的显示位置）
+      // 绘制光标
       if (this.isActive) {
         let cursorWidth = 0;
         for (let i = 0; i < this.cursorPos && i < this.inputBuffer.length; i++) {
-          cursorWidth += this.getCharWidth(this.inputBuffer[i]);
+          cursorWidth += getCharWidth(this.inputBuffer[i]);
         }
         const cursorX = inputX + promptWidth + cursorWidth;
-        engine.putChar(cursorX, inputY, '█');
+        if (cursorX >= 0 && cursorX < inputX + inputWidth) {
+          engine.putChar(cursorX, inputY, '_', Theme.accent);
+        }
       }
     }
   }

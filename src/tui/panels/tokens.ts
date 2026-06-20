@@ -45,7 +45,7 @@ export class TokensPanel {
   constructor(x: number, y: number, width: number, height: number, options: TokensPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '🔢 Token 统计', border: true, accentColor },
+      { title: '[TKN] Token 统计', border: true, accentColor },
     );
     this.options = {
       maxHistory: 50,
@@ -127,10 +127,10 @@ export class TokensPanel {
     this.box.setContent([]);
 
     // Token 使用总量
-    this.box.appendLine(colorize('使用量:', Theme.textMuted));
-    this.box.appendLine(`  Prompt:   ${colorize(this.formatNumber(this.data.prompt), Theme.primary)}`);
-    this.box.appendLine(`  Complete: ${colorize(this.formatNumber(this.data.completion), Theme.secondary)}`);
-    this.box.appendLine(`  Total:    ${colorize(this.formatNumber(this.data.total), Theme.textBright)}`);
+    this.box.appendLine(colorize('Token 总量:', Theme.textMuted));
+    this.box.appendLine(`  Prompt:     ${colorize(this.formatNumber(this.data.prompt), Theme.primary)}`);
+    this.box.appendLine(`  Completion: ${colorize(this.formatNumber(this.data.completion), Theme.secondary)}`);
+    this.box.appendLine(`  总计:       ${colorize(this.formatNumber(this.data.total), Theme.textBright)}`);
 
     // 上下文使用
     this.box.appendLine('');
@@ -146,12 +146,6 @@ export class TokensPanel {
     this.box.appendLine(`  ${contextProgress.render()}`);
     this.box.appendLine(`  ${this.formatNumber(this.data.context.current)} / ${this.formatNumber(this.data.context.max)}`);
     this.box.appendLine(`  消息数: ${this.data.context.messages}`);
-
-    // 成本估算
-    this.box.appendLine('');
-    this.box.appendLine(colorize('成本估算:', Theme.textMuted));
-    this.box.appendLine(`  当前会话: ${colorize(this.formatCost(this.data.cost.totalCost), Theme.success)}`);
-    this.box.appendLine(`  费率: P=$${this.data.cost.promptRate}/1M  C=$${this.data.cost.completionRate}/1M`);
 
     // 使用趋势
     if (this.data.history.length > 1) {

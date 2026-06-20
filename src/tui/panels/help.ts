@@ -20,7 +20,7 @@ export class HelpPanel {
   constructor(x: number, y: number, width: number, height: number) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '❓ 帮助', border: true },
+      { title: '[?] 帮助', border: true },
     );
   }
 
@@ -54,7 +54,7 @@ export class HelpPanel {
           { key: 'F5', desc: '刷新所有面板' },
           { key: 'Tab', desc: '切换面板焦点' },
           { key: 'Ctrl+C', desc: '退出 TUI' },
-          { key: '↑/↓', desc: '滚动当前面板' },
+          { key: 'Up/Down', desc: '滚动当前面板' },
           { key: 'PgUp/PgDn', desc: '快速滚动' },
         ],
       },
@@ -78,13 +78,13 @@ export class HelpPanel {
       {
         title: '面板说明',
         items: [
-          { key: '💬 对话', desc: '与 Agent 交互，显示消息历史' },
-          { key: '📊 系统状态', desc: '显示健康状态、内存、CPU' },
-          { key: '📈 性能指标', desc: '请求统计、延迟、Token 使用' },
-          { key: '🔢 Token 统计', desc: 'Token 用量、成本估算' },
-          { key: '🤖 Agent 列表', desc: '运行中的 Agent 状态' },
-          { key: '🔧 最近工具', desc: '工具调用记录' },
-          { key: '📋 日志', desc: '实时日志流' },
+          { key: '[CHAT] 对话', desc: '与 Agent 交互，显示消息历史' },
+          { key: '[SYS] 系统状态', desc: '显示健康状态、内存、CPU' },
+          { key: '[MET] 性能指标', desc: '请求统计、延迟、Token 使用' },
+          { key: '[TKN] Token 统计', desc: 'Token 用量统计' },
+          { key: '[AGT] Agent 列表', desc: '运行中的 Agent 状态' },
+          { key: '[TOOL] 最近工具', desc: '工具调用记录' },
+          { key: '[LOG] 日志', desc: '实时日志流' },
         ],
       },
     ];
