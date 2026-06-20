@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.3.0] - 2026-06-20
+
+### Added
+- TUI 终端用户界面
+  - 输入历史支持（Up/Down 浏览）
+  - 面板焦点切换（Tab 键）
+  - 命令解析（/help, /clear, /status, /config, /history, /quit）
+  - 退出确认对话框
+  - 粘贴缓冲支持（Bracketed Paste）
+  - 水平滚动（光标超出可视区域时自动滚动）
+  - 焦点指示器
+  - 6 个面板（status, metrics, tokens, agents, tools, logs）
+
+### Fixed
+- 修复测试文件 ESLint 错误
+- 移除未使用的导入和变量
+
+### Changed
+- 调整面板最小高度（6行）
+- 优化面板宽度分配
+
 ## [1.2.0] - 2026-06-19
 
 ### Added
