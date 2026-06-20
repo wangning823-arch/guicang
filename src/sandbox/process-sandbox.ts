@@ -57,6 +57,16 @@ export class ProcessSandbox extends BaseSandbox {
     command: string,
     options?: { timeout?: number },
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    // 检查权限
+    const permResult = this.checkPermission('shell:execute', command);
+    if (!permResult.allowed) {
+      return {
+        stdout: '',
+        stderr: permResult.reason ?? 'Permission denied',
+        exitCode: 126,
+      };
+    }
+
     const timeout = options?.timeout ?? this.config.commandTimeout ?? 30_000;
 
     this.logger.debug('Executing command', { command, timeout });
@@ -67,10 +77,10 @@ export class ProcessSandbox extends BaseSandbox {
         timeout,
         maxBuffer: 10 * 1024 * 1024, // 10MB
         env: {
-          ...process.env,
-          // 限制环境变量
+          // 仅传递必要的环境变量，不泄露其他变量
           PATH: process.env.PATH,
           HOME: process.env.HOME,
+          NODE_ENV: process.env.NODE_ENV,
         },
       });
 
@@ -81,7 +91,17 @@ export class ProcessSandbox extends BaseSandbox {
         stdout?: string;
         stderr?: string;
         message?: string;
+        killed?: boolean;
       };
+
+      // 区分超时和其他错误
+      if (err.killed) {
+        return {
+          stdout: err.stdout ?? '',
+          stderr: `Command timed out after ${timeout}ms`,
+          exitCode: 124,
+        };
+      }
 
       return {
         stdout: err.stdout ?? '',

@@ -91,11 +91,18 @@ export class StreamHandler {
 
   /** 完成处理 */
   finish(): LLMResponse {
-    const toolCalls: ToolCall[] = [...this.toolCalls.values()].map((tc) => ({
-      id: tc.id,
-      name: tc.name,
-      arguments: this.safeParseJSON(tc.argsBuffer),
-    }));
+    // 为未结束的工具调用补发 tool_call_end 事件
+    const toolCalls: ToolCall[] = [];
+    for (const [, tc] of this.toolCalls) {
+      const parsed: ToolCall = {
+        id: tc.id,
+        name: tc.name,
+        arguments: this.safeParseJSON(tc.argsBuffer),
+      };
+      this.emit({ type: 'tool_call_end', toolCallId: tc.id, toolCall: parsed });
+      toolCalls.push(parsed);
+    }
+    this.toolCalls.clear();
 
     this.emit({ type: 'done' });
 

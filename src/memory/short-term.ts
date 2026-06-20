@@ -27,9 +27,9 @@ export class ShortTermMemory implements MemoryStore {
 
     this.entries.push(newEntry);
 
-    // FIFO 淘汰：超出限制时移除最旧的
-    while (this.entries.length > this.limit) {
-      this.entries.shift();
+    // FIFO 淘汰：超出限制时批量移除最旧的
+    if (this.entries.length > this.limit) {
+      this.entries.splice(0, this.entries.length - this.limit);
     }
 
     return newEntry;
@@ -44,7 +44,7 @@ export class ShortTermMemory implements MemoryStore {
       results = results.filter(
         (e) =>
           e.content.toLowerCase().includes(keyword) ||
-          e.metadata.toString().toLowerCase().includes(keyword),
+          JSON.stringify(e.metadata).toLowerCase().includes(keyword),
       );
     }
 

@@ -30,6 +30,13 @@ const DEFAULT_OPTIONS: Required<AgentOptions> = {
   providerOptions: {},
 };
 
+/** 安全获取环境变量（过滤 undefined 值） */
+function getSafeEnv(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([, v]) => v !== undefined),
+  ) as Record<string, string>;
+}
+
 export class Agent {
   private logger = new Logger('agent');
   private status: AgentStatus = 'idle';
@@ -47,33 +54,15 @@ export class Agent {
   }
 
   /**
-   * 运行 agent
-   * @param userMessage 用户输入
-   * @returns Agent 运行结果
+   * 核心执行循环（提取公共逻辑，消除 run/runWithHistory 重复）
    */
-  async run(userMessage: string): Promise<AgentResult> {
-    this.status = 'thinking';
-    const messages: Message[] = [];
+  private async executeLoop(
+    messages: Message[],
+    toolContext: ToolContext,
+  ): Promise<AgentResult> {
     const allToolCalls: Array<ToolCall & { result?: ToolResult }> = [];
     const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-
-    // 添加系统提示
-    if (this.options.systemPrompt) {
-      messages.push({ role: 'system', content: this.options.systemPrompt });
-    }
-
-    // 添加用户消息
-    messages.push({ role: 'user', content: userMessage });
-
-    // 获取可用工具定义
     const toolDefs = getAllToolDefinitions();
-    const toolContext: ToolContext = {
-      cwd: process.cwd(),
-      env: process.env as Record<string, string>,
-      log: (msg: string) => this.logger.debug(msg),
-      ...this.options.toolContext,
-    };
-
     let iterations = 0;
 
     try {
@@ -162,6 +151,34 @@ export class Agent {
   }
 
   /**
+   * 运行 agent
+   * @param userMessage 用户输入
+   * @returns Agent 运行结果
+   */
+  async run(userMessage: string): Promise<AgentResult> {
+    this.status = 'thinking';
+    const messages: Message[] = [];
+
+    // 添加系统提示
+    if (this.options.systemPrompt) {
+      messages.push({ role: 'system', content: this.options.systemPrompt });
+    }
+
+    // 添加用户消息
+    messages.push({ role: 'user', content: userMessage });
+
+    // 获取可用工具定义
+    const toolContext: ToolContext = {
+      cwd: process.cwd(),
+      env: getSafeEnv(),
+      log: (msg: string) => this.logger.debug(msg),
+      ...this.options.toolContext,
+    };
+
+    return this.executeLoop(messages, toolContext);
+  }
+
+  /**
    * 运行 agent（带对话历史）
    */
   async runWithHistory(
@@ -170,8 +187,6 @@ export class Agent {
   ): Promise<AgentResult> {
     this.status = 'thinking';
     const messages: Message[] = [...history];
-    const allToolCalls: Array<ToolCall & { result?: ToolResult }> = [];
-    const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
     // 添加系统提示（如果没有）
     if (this.options.systemPrompt && !messages.some((m) => m.role === 'system')) {
@@ -181,84 +196,13 @@ export class Agent {
     // 添加用户消息
     messages.push({ role: 'user', content: userMessage });
 
-    const toolDefs = getAllToolDefinitions();
     const toolContext: ToolContext = {
       cwd: process.cwd(),
-      env: process.env as Record<string, string>,
+      env: getSafeEnv(),
       log: (msg: string) => this.logger.debug(msg),
       ...this.options.toolContext,
     };
 
-    let iterations = 0;
-
-    try {
-      while (iterations < (this.options.maxIterations ?? DEFAULT_OPTIONS.maxIterations)) {
-        iterations++;
-
-        this.status = 'thinking';
-        const response = await this.provider.chat(
-          messages,
-          toolDefs.length > 0 ? toolDefs : undefined,
-          this.options.providerOptions,
-        );
-
-        if (response.usage) {
-          totalUsage.promptTokens += response.usage.promptTokens;
-          totalUsage.completionTokens += response.usage.completionTokens;
-          totalUsage.totalTokens += response.usage.totalTokens;
-        }
-
-        if (!response.toolCalls || response.toolCalls.length === 0) {
-          messages.push(response.message);
-          this.status = 'done';
-          return {
-            status: 'done',
-            messages,
-            toolCalls: allToolCalls,
-            totalUsage,
-          };
-        }
-
-        this.status = 'acting';
-        messages.push(response.message);
-
-        for (const toolCall of response.toolCalls) {
-          const result = await executeTool(
-            toolCall.name,
-            toolCall.arguments,
-            toolCall.id,
-            toolContext,
-          );
-
-          allToolCalls.push({ ...toolCall, result });
-
-          messages.push({
-            role: 'tool',
-            content: result.success ? result.content : `Error: ${result.error}`,
-            toolCallId: toolCall.id,
-          });
-        }
-
-        this.status = 'observing';
-      }
-
-      this.status = 'done';
-      return {
-        status: 'done',
-        messages,
-        toolCalls: allToolCalls,
-        totalUsage,
-        error: `Max iterations (${this.options.maxIterations}) reached`,
-      };
-    } catch (error) {
-      this.status = 'error';
-      return {
-        status: 'error',
-        messages,
-        toolCalls: allToolCalls,
-        totalUsage,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    return this.executeLoop(messages, toolContext);
   }
 }

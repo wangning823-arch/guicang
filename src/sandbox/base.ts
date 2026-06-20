@@ -71,22 +71,29 @@ export abstract class BaseSandbox {
 
   /**
    * 检查路径是否被阻止
+   * 使用精确匹配或路径段匹配，避免 /etc 匹配 /etc2
    */
   isPathBlocked(path: string): boolean {
-    return (this.config.blockedPaths ?? []).some((blocked) =>
-      path.startsWith(blocked),
-    );
+    return (this.config.blockedPaths ?? []).some((blocked) => {
+      // 精确匹配
+      if (path === blocked) return true;
+      // 路径段匹配：确保是子路径（blocked 以 / 结尾，或 path 在 blocked 后有 /）
+      return path.startsWith(blocked) && (blocked.endsWith('/') || path[blocked.length] === '/');
+    });
   }
 
   /**
    * 检查域名是否允许
+   * 支持端口号（如 api.example.com:8080）
    */
   isDomainAllowed(domain: string): boolean {
     if (!this.config.allowedDomains || this.config.allowedDomains.length === 0) {
       return true; // 未配置时允许所有
     }
+    // 移除端口号再匹配
+    const domainWithoutPort = domain.split(':')[0];
     return this.config.allowedDomains.some((allowed) =>
-      domain === allowed || domain.endsWith(`.${allowed}`),
+      domainWithoutPort === allowed || domainWithoutPort.endsWith(`.${allowed}`),
     );
   }
 
