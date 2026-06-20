@@ -42,10 +42,10 @@ export class TokensPanel {
   };
   private options: TokensPanelOptions;
 
-  constructor(x: number, y: number, width: number, height: number, options: TokensPanelOptions = {}) {
+  constructor(x: number, y: number, width: number, height: number, options: TokensPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '🔢 Token 统计', border: true },
+      { title: '🔢 Token 统计', border: true, accentColor },
     );
     this.options = {
       maxHistory: 50,

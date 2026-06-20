@@ -49,21 +49,6 @@ function getCharWidth(char: string): number {
   return 1;
 }
 
-/**
- * 获取字符串的显示宽度（考虑多字节字符）
- */
-function getStringWidth(str: string): number {
-  let width = 0;
-  for (const char of str) {
-    // 跳过ANSI转义序列
-    if (char === '\x1b') {
-      continue;
-    }
-    width += getCharWidth(char);
-  }
-  return width;
-}
-
 /** 绘图坐标 */
 export interface Position {
   x: number;
@@ -295,6 +280,24 @@ export class TUIEngine {
 
     // 底部
     this.putColorText(x, y + height - 1, colorize('└' + '─'.repeat(width - 2) + '┘', color), color);
+  }
+
+  /** 绘制带背景色的矩形 */
+  drawBoxWithBg(rect: Rect, borderColor: string, bgColor: string): void {
+    const { x, y, width, height } = rect;
+
+    // 填充背景
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        const pos = y * this.width + x + col + row * this.width;
+        if (pos >= 0 && pos < this.width * this.height) {
+          this.putColorText(x + col, y + row, ' ', bgColor);
+        }
+      }
+    }
+
+    // 绘制边框
+    this.drawBox(rect, borderColor);
   }
 
   /** 填充区域 */

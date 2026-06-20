@@ -167,22 +167,22 @@ async function main() {
         engine.render();
       }
     },
-  });
+  }, Theme.chatPanel);
 
   // 右侧面板
   const statusPanelHeight = 8;
   const metricsPanelHeight = 8;
   const tokensPanelHeight = mainHeight - statusPanelHeight - metricsPanelHeight - 4;
 
-  const statusPanel = new StatusPanel(rightX, 1, rightWidth, statusPanelHeight);
-  const metricsPanel = new MetricsPanel(rightX, statusPanelHeight + 2, rightWidth, metricsPanelHeight);
-  const tokensPanel = new TokensPanel(rightX, statusPanelHeight + metricsPanelHeight + 3, rightWidth, tokensPanelHeight);
+  const statusPanel = new StatusPanel(rightX, 1, rightWidth, statusPanelHeight, Theme.statusPanel);
+  const metricsPanel = new MetricsPanel(rightX, statusPanelHeight + 2, rightWidth, metricsPanelHeight, Theme.metricsPanel);
+  const tokensPanel = new TokensPanel(rightX, statusPanelHeight + metricsPanelHeight + 3, rightWidth, tokensPanelHeight, {}, Theme.tokensPanel);
 
   // 底部面板
   const bottomPanelWidth = Math.floor(width / 3);
-  const agentsPanel = new AgentsPanel(1, bottomY, bottomPanelWidth, 3);
-  const toolsPanel = new ToolsPanel(bottomPanelWidth + 1, bottomY, bottomPanelWidth, 3);
-  const logsPanel = new LogsPanel(bottomPanelWidth * 2 + 2, bottomY, width - bottomPanelWidth * 2 - 2, 3);
+  const agentsPanel = new AgentsPanel(1, bottomY, bottomPanelWidth, 3, Theme.success);
+  const toolsPanel = new ToolsPanel(bottomPanelWidth + 1, bottomY, bottomPanelWidth, 3, {}, Theme.warning);
+  const logsPanel = new LogsPanel(bottomPanelWidth * 2 + 2, bottomY, width - bottomPanelWidth * 2 - 2, 3, {}, Theme.info);
 
   // 重定向日志输出到 LogsPanel
   setLogOutput((level: LogLevel, entry: LogEntry) => {

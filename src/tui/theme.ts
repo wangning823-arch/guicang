@@ -38,6 +38,16 @@ export const Colors = {
   bgCyan: '\x1b[46m',
   bgWhite: '\x1b[47m',
 
+  // 亮背景色
+  bgBrightBlack: '\x1b[100m',
+  bgBrightRed: '\x1b[101m',
+  bgBrightGreen: '\x1b[102m',
+  bgBrightYellow: '\x1b[103m',
+  bgBrightBlue: '\x1b[104m',
+  bgBrightMagenta: '\x1b[105m',
+  bgBrightCyan: '\x1b[106m',
+  bgBrightWhite: '\x1b[107m',
+
   // 样式
   bold: '\x1b[1m',
   dim: '\x1b[2m',
@@ -53,47 +63,53 @@ export const Colors = {
 
 /** 主题配色方案 */
 export const Theme = {
-  // 主色调
-  primary: Colors.cyan,
-  secondary: Colors.magenta,
-  accent: Colors.brightCyan,
+  // 主色调 - 使用更鲜艳的颜色
+  primary: Colors.brightCyan,
+  secondary: Colors.brightMagenta,
+  accent: Colors.brightYellow,
 
   // 状态色
-  success: Colors.green,
-  warning: Colors.yellow,
-  error: Colors.red,
-  info: Colors.blue,
+  success: Colors.brightGreen,
+  warning: Colors.brightYellow,
+  error: Colors.brightRed,
+  info: Colors.brightBlue,
 
   // 文本色
-  text: Colors.white,
+  text: Colors.brightWhite,
   textMuted: Colors.gray,
-  textBright: Colors.brightWhite,
+  textBright: Colors.white,
   textDim: Colors.darkGray,
 
-  // 边框色
+  // 边框色 - 使用不同颜色区分面板
   border: Colors.gray,
-  borderActive: Colors.cyan,
-  borderFocused: Colors.brightCyan,
+  borderActive: Colors.brightCyan,
+  borderFocused: Colors.brightYellow,
 
   // 背景色
   bg: Colors.bgBlack,
   bgActive: Colors.bgBlue,
   bgHighlight: Colors.bgCyan,
 
-  // 面板标题
-  panelTitle: Colors.brightCyan,
+  // 面板标题 - 使用不同颜色
+  panelTitle: Colors.brightYellow,
   panelBorder: Colors.gray,
+
+  // 面板特定颜色
+  chatPanel: Colors.brightCyan,
+  statusPanel: Colors.brightGreen,
+  metricsPanel: Colors.brightMagenta,
+  tokensPanel: Colors.brightBlue,
 
   // 日志级别
   logDebug: Colors.gray,
-  logInfo: Colors.blue,
-  logWarn: Colors.yellow,
-  logError: Colors.red,
+  logInfo: Colors.brightCyan,
+  logWarn: Colors.brightYellow,
+  logError: Colors.brightRed,
 
   // 状态指示
-  statusHealthy: Colors.green,
-  statusDegraded: Colors.yellow,
-  statusUnhealthy: Colors.red,
+  statusHealthy: Colors.brightGreen,
+  statusDegraded: Colors.brightYellow,
+  statusUnhealthy: Colors.brightRed,
 } as const;
 
 /** 工具函数：应用颜色 */

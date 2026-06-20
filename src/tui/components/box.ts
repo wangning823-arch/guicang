@@ -52,30 +52,6 @@ function getCharWidth(char: string): number {
 }
 
 /**
- * 计算字符串的显示宽度（跳过ANSI转义序列）
- */
-function getStringDisplayWidth(str: string): number {
-  let width = 0;
-  let inEscape = false;
-
-  for (const char of str) {
-    if (char === '\x1b') {
-      inEscape = true;
-      continue;
-    }
-    if (inEscape) {
-      if (char === 'm') {
-        inEscape = false;
-      }
-      continue;
-    }
-    width += getCharWidth(char);
-  }
-
-  return width;
-}
-
-/**
  * 截断字符串到指定宽度（考虑多字节字符和ANSI转义序列）
  */
 function truncateString(str: string, maxWidth: number): string {
@@ -114,6 +90,7 @@ export interface BoxOptions {
   border?: boolean;
   borderColor?: string;
   active?: boolean;
+  accentColor?: string; // 面板强调色
 }
 
 export class Box {
@@ -127,6 +104,7 @@ export class Box {
     this.options = {
       border: true,
       borderColor: Theme.panelBorder,
+      accentColor: Theme.primary,
       ...options,
     };
   }
@@ -162,7 +140,8 @@ export class Box {
   /** 渲染到引擎 */
   render(engine: TUIEngine): void {
     const { x, y, width, height } = this.rect;
-    const borderColor = this.options.active ? Theme.borderFocused : this.options.borderColor;
+    // 使用面板强调色作为边框色（不再仅限 active 状态）
+    const borderColor = this.options.accentColor || this.options.borderColor || Theme.panelBorder;
 
     if (this.options.border) {
       // 绘制边框
@@ -179,8 +158,8 @@ export class Box {
           engine.putChar(titleX + i, titleY, ' ');
         }
 
-        // 写入标题
-        engine.putColorText(titleX, titleY, colorize(titleText, Theme.panelTitle), Theme.panelTitle);
+        // 使用面板强调色写入标题
+        engine.putColorText(titleX, titleY, colorize(titleText, this.options.accentColor || Theme.panelTitle), this.options.accentColor || Theme.panelTitle);
       }
     }
 

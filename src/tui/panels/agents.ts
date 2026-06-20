@@ -22,10 +22,10 @@ export class AgentsPanel {
   private agents: AgentInfo[] = [];
   private selected = 0;
 
-  constructor(x: number, y: number, width: number, height: number) {
+  constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '🤖 Agent 列表', border: true },
+      { title: '🤖 Agent 列表', border: true, accentColor },
     );
   }
 

@@ -25,10 +25,10 @@ export class ToolsPanel {
   private entries: ToolCallEntry[] = [];
   private maxEntries: number;
 
-  constructor(x: number, y: number, width: number, height: number, options: ToolsPanelOptions = {}) {
+  constructor(x: number, y: number, width: number, height: number, options: ToolsPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '🔧 最近工具', border: true },
+      { title: '🔧 最近工具', border: true, accentColor },
     );
     this.maxEntries = options.maxEntries ?? 20;
   }

@@ -41,10 +41,10 @@ export class MetricsPanel {
     tools: { total: 0, success: 0, failed: 0 },
   };
 
-  constructor(x: number, y: number, width: number, height: number) {
+  constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '📈 性能指标', border: true },
+      { title: '📈 性能指标', border: true, accentColor },
     );
   }
 

@@ -31,10 +31,10 @@ export class ChatPanel {
   private isActive = false;
   private isProcessing = false;
 
-  constructor(x: number, y: number, width: number, height: number, options: ChatPanelOptions = {}) {
+  constructor(x: number, y: number, width: number, height: number, options: ChatPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '💬 对话', border: true, active: false },
+      { title: '💬 对话', border: true, active: false, accentColor },
     );
     this.options = options;
   }

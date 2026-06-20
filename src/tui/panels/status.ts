@@ -35,10 +35,10 @@ export class StatusPanel {
     agents: { total: 0, online: 0, busy: 0 },
   };
 
-  constructor(x: number, y: number, width: number, height: number) {
+  constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '📊 系统状态', border: true },
+      { title: '📊 系统状态', border: true, accentColor },
     );
   }
 

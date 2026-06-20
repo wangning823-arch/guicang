@@ -24,10 +24,10 @@ export class LogsPanel {
   private entries: LogEntry[] = [];
   private maxEntries: number;
 
-  constructor(x: number, y: number, width: number, height: number, options: LogsPanelOptions = {}) {
+  constructor(x: number, y: number, width: number, height: number, options: LogsPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
-      { title: '📋 日志', border: true },
+      { title: '📋 日志', border: true, accentColor },
     );
     this.maxEntries = options.maxEntries ?? 100;
   }
