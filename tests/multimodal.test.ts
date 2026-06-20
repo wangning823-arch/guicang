@@ -6,7 +6,6 @@ import {
   extractImages,
   imageFromUrl,
   type MultimodalContent,
-  type ImageContent,
 } from '../src/multimodal/index.js';
 
 describe('Multimodal Utils', () => {

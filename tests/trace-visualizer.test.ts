@@ -5,7 +5,6 @@ import {
   renderTraceHTML,
 } from '../src/monitoring/trace-visualizer.js';
 import { Tracer } from '../src/monitoring/tracer.js';
-import type { Span } from '../src/monitoring/tracer.js';
 
 describe('TraceVisualizer', () => {
   let tracer: Tracer;
@@ -208,7 +207,7 @@ describe('TraceVisualizer', () => {
 
   describe('edge cases', () => {
     it('should handle span without endTime', () => {
-      const root = tracer.startTrace('root');
+      tracer.startTrace('root');
       // Don't end span
 
       const result = visualizer.renderTimeline(tracer.getAllSpans());
