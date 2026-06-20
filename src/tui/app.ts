@@ -73,8 +73,8 @@ export class TUIApp {
     // 状态栏在最底部
     this.statusBarY = height - 1;
 
-    // 左侧：Chat 面板（占 60% 宽度）
-    const chatWidth = Math.floor(width * 0.6);
+    // 左侧：Chat 面板（占 55% 宽度）
+    const chatWidth = Math.floor(width * 0.55);
     const chatHeight = height - 1; // 减去状态栏
 
     this.panels.chat = {
@@ -87,11 +87,11 @@ export class TUIApp {
     // 右侧：多个面板（使用固定最小高度）
     const rightX = chatWidth;
     const rightWidth = width - chatWidth;
-    const minPanelHeight = 8; // 最小面板高度
+    const minPanelHeight = 6; // 最小面板高度
     const availableHeight = height - 1; // 减去状态栏
 
     // 计算每个面板的高度（确保至少有最小高度）
-    const rightPanelHeight = Math.max(minPanelHeight, Math.floor(availableHeight / 4));
+    const rightPanelHeight = Math.max(minPanelHeight, Math.floor(availableHeight / 6));
 
     this.panels.status = {
       panel: new StatusPanel(rightX, 0, rightWidth, rightPanelHeight),
@@ -109,8 +109,18 @@ export class TUIApp {
     };
 
     this.panels.agents = {
-      panel: new AgentsPanel(rightX, rightPanelHeight * 3, rightWidth, availableHeight - rightPanelHeight * 3),
-      rect: { x: rightX, y: rightPanelHeight * 3, width: rightWidth, height: availableHeight - rightPanelHeight * 3 },
+      panel: new AgentsPanel(rightX, rightPanelHeight * 3, rightWidth, rightPanelHeight),
+      rect: { x: rightX, y: rightPanelHeight * 3, width: rightWidth, height: rightPanelHeight },
+    };
+
+    this.panels.tools = {
+      panel: new ToolsPanel(rightX, rightPanelHeight * 4, rightWidth, rightPanelHeight),
+      rect: { x: rightX, y: rightPanelHeight * 4, width: rightWidth, height: rightPanelHeight },
+    };
+
+    this.panels.logs = {
+      panel: new LogsPanel(rightX, rightPanelHeight * 5, rightWidth, availableHeight - rightPanelHeight * 5),
+      rect: { x: rightX, y: rightPanelHeight * 5, width: rightWidth, height: availableHeight - rightPanelHeight * 5 },
     };
 
     // 设置第一个面板为激活状态
