@@ -17,17 +17,9 @@ import { Theme, colorize } from './theme.js';
 /** 面板类型 */
 type PanelType = 'chat' | 'status' | 'metrics' | 'tokens' | 'agents' | 'tools' | 'logs';
 
-/** 面板接口 */
-interface Panel {
-  render: (engine: TUIEngine) => void;
-  setActive?: (active: boolean) => void;
-  handleKey?: (event: KeyEvent) => void;
-  [key: string]: unknown;
-}
-
 /** 面板项 */
 interface PanelItem {
-  panel: Panel;
+  panel: ChatPanel | StatusPanel | MetricsPanel | TokensPanel | AgentsPanel | ToolsPanel | LogsPanel;
   rect: { x: number; y: number; width: number; height: number };
 }
 
@@ -130,14 +122,14 @@ export class TUIApp {
     // 取消所有面板的激活状态
     for (const key of Object.keys(this.panels) as PanelType[]) {
       const p = this.panels[key]?.panel;
-      if (p && typeof p.setActive === 'function') {
+      if (p instanceof ChatPanel) {
         p.setActive(false);
       }
     }
 
     // 设置当前面板为激活状态
     const current = this.panels[type]?.panel;
-    if (current && typeof current.setActive === 'function') {
+    if (current instanceof ChatPanel) {
       current.setActive(true);
     }
   }
@@ -249,8 +241,8 @@ export class TUIApp {
 
     // 命令输入模式（当 Chat 面板激活时）
     if (this.focusOrder[this.focusIndex] === 'chat') {
-      const chatPanel = this.panels.chat?.panel as ChatPanel;
-      if (chatPanel && typeof chatPanel.handleKey === 'function') {
+      const chatPanel = this.panels.chat?.panel;
+      if (chatPanel instanceof ChatPanel) {
         chatPanel.handleKey(event);
       }
     }
@@ -275,64 +267,64 @@ export class TUIApp {
 
   /** 更新状态数据 */
   updateStatus(data: StatusPanelData): void {
-    const panel = this.panels.status?.panel as StatusPanel;
-    if (panel) {
+    const panel = this.panels.status?.panel;
+    if (panel instanceof StatusPanel) {
       panel.updateData(data);
     }
   }
 
   /** 更新指标数据 */
   updateMetrics(data: MetricsPanelData): void {
-    const panel = this.panels.metrics?.panel as MetricsPanel;
-    if (panel) {
+    const panel = this.panels.metrics?.panel;
+    if (panel instanceof MetricsPanel) {
       panel.updateData(data);
     }
   }
 
   /** 更新 Token 数据 */
   updateTokens(data: TokenUsageData): void {
-    const panel = this.panels.tokens?.panel as TokensPanel;
-    if (panel) {
+    const panel = this.panels.tokens?.panel;
+    if (panel instanceof TokensPanel) {
       panel.recordUsage(data.prompt, data.completion);
     }
   }
 
   /** 更新 Agent 列表 */
   updateAgents(agents: AgentInfo[]): void {
-    const panel = this.panels.agents?.panel as AgentsPanel;
-    if (panel) {
+    const panel = this.panels.agents?.panel;
+    if (panel instanceof AgentsPanel) {
       panel.updateAgents(agents);
     }
   }
 
   /** 添加工具调用记录 */
   addToolCall(entry: ToolCallEntry): void {
-    const panel = this.panels.tools?.panel as ToolsPanel;
-    if (panel) {
+    const panel = this.panels.tools?.panel;
+    if (panel instanceof ToolsPanel) {
       panel.addEntry(entry);
     }
   }
 
   /** 添加日志 */
   addLog(entry: LogEntry): void {
-    const panel = this.panels.logs?.panel as LogsPanel;
-    if (panel) {
+    const panel = this.panels.logs?.panel;
+    if (panel instanceof LogsPanel) {
       panel.addEntry(entry);
     }
   }
 
   /** 添加聊天消息 */
   addMessage(message: ChatMessage): void {
-    const panel = this.panels.chat?.panel as ChatPanel;
-    if (panel) {
+    const panel = this.panels.chat?.panel;
+    if (panel instanceof ChatPanel) {
       panel.addMessage(message);
     }
   }
 
   /** 清空聊天 */
   clearChat(): void {
-    const panel = this.panels.chat?.panel as ChatPanel;
-    if (panel) {
+    const panel = this.panels.chat?.panel;
+    if (panel instanceof ChatPanel) {
       panel.clearHistory();
     }
   }
@@ -342,9 +334,7 @@ export class TUIApp {
     // 渲染所有面板
     for (const key of Object.keys(this.panels) as PanelType[]) {
       const { panel } = this.panels[key];
-      if (panel && typeof panel.render === 'function') {
-        panel.render(this.engine);
-      }
+      panel.render(this.engine);
     }
 
     // 渲染焦点指示器

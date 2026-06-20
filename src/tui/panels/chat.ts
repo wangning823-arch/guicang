@@ -20,6 +20,7 @@ export interface ChatMessage {
 
 export interface ChatPanelOptions {
   onSend?: (message: string) => void;
+  onPaste?: (text: string) => void;
 }
 
 /**
@@ -103,6 +104,9 @@ export class ChatPanel {
   private history: string[] = [];
   private historyIndex = -1; // -1 表示当前输入
   private savedInput = ''; // 保存当前未发送的输入
+  // 粘贴缓冲
+  private pasteBuffer = '';
+  private isPasting = false;
 
   constructor(x: number, y: number, width: number, height: number, options: ChatPanelOptions = {}, accentColor?: string, inputY?: number) {
     this.box = new BoxComponent(
@@ -253,6 +257,28 @@ export class ChatPanel {
   handleKey(event: KeyEvent): void {
     if (!this.isActive) return;
 
+    // 处理粘贴
+    if (event.key === '\x1b[200~') {
+      // 粘贴开始
+      this.isPasting = true;
+      this.pasteBuffer = '';
+      return;
+    }
+    if (event.key === '\x1b[201~') {
+      // 粘贴结束
+      this.isPasting = false;
+      if (this.pasteBuffer) {
+        // 处理粘贴内容
+        this.handlePaste(this.pasteBuffer);
+      }
+      return;
+    }
+    if (this.isPasting) {
+      // 收集粘贴内容
+      this.pasteBuffer += event.key;
+      return;
+    }
+
     if (event.name === 'return') {
       // 发送消息
       if (this.inputBuffer.trim()) {
@@ -398,14 +424,37 @@ export class ChatPanel {
       // 计算可用宽度（减去提示符宽度）
       const availableWidth = inputWidth - promptWidth;
 
-      // 截取输入内容到可用宽度
+      // 计算光标位置
+      let cursorWidth = 0;
+      for (let i = 0; i < this.cursorPos && i < this.inputBuffer.length; i++) {
+        cursorWidth += getCharWidth(this.inputBuffer[i]);
+      }
+
+      // 计算水平滚动偏移
+      let scrollOffset = 0;
+      if (cursorWidth >= availableWidth) {
+        scrollOffset = cursorWidth - availableWidth + 1;
+      }
+
+      // 截取输入内容到可用宽度（考虑滚动）
       let displayInput = '';
       let currentWidth = 0;
-      for (const char of this.inputBuffer) {
+      let displayedWidth = 0;
+      for (let i = 0; i < this.inputBuffer.length; i++) {
+        const char = this.inputBuffer[i];
         const charWidth = getCharWidth(char);
-        if (currentWidth + charWidth > availableWidth) break;
+
+        // 跳过滚动前的字符
+        if (currentWidth < scrollOffset) {
+          currentWidth += charWidth;
+          continue;
+        }
+
+        // 检查是否超出可用宽度
+        if (displayedWidth + charWidth > availableWidth) break;
+
         displayInput += char;
-        currentWidth += charWidth;
+        displayedWidth += charWidth;
       }
 
       // 绘制输入内容
@@ -413,14 +462,45 @@ export class ChatPanel {
 
       // 绘制光标
       if (this.isActive) {
-        let cursorWidth = 0;
-        for (let i = 0; i < this.cursorPos && i < this.inputBuffer.length; i++) {
-          cursorWidth += getCharWidth(this.inputBuffer[i]);
-        }
-        const cursorX = inputX + promptWidth + cursorWidth;
-        if (cursorX >= 0 && cursorX < inputX + inputWidth) {
+        const cursorX = inputX + promptWidth + cursorWidth - scrollOffset;
+        if (cursorX >= inputX + promptWidth && cursorX < inputX + inputWidth) {
           engine.putChar(cursorX, inputY, '_', Theme.accent);
         }
+      }
+    }
+  }
+
+  /** 处理粘贴 */
+  private handlePaste(text: string): void {
+    // 移除可能的换行符
+    const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // 如果是单行，直接插入
+    if (!cleanText.includes('\n')) {
+      this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + cleanText + this.inputBuffer.slice(this.cursorPos);
+      this.cursorPos += cleanText.length;
+      return;
+    }
+
+    // 多行粘贴：第一行插入到当前输入，后续行作为新消息发送
+    const lines = cleanText.split('\n');
+    if (lines.length > 0) {
+      // 第一行追加到当前输入
+      this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + lines[0] + this.inputBuffer.slice(this.cursorPos);
+      this.cursorPos += lines[0].length;
+    }
+
+    // 后续行逐行发送
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line) {
+        this.options.onSend?.(line);
+        this.addMessage({
+          role: 'user',
+          content: line,
+          timestamp: new Date(),
+        });
+        this.history.push(line);
       }
     }
   }
