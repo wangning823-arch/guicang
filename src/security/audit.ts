@@ -7,6 +7,18 @@ import { Logger } from '../core/logger.js';
 
 const logger = new Logger('security:audit');
 
+/** 危险命令模式（预编译，避免每次调用重新创建） */
+const DANGEROUS_COMMAND_PATTERNS = [
+  /rm\s+-rf/,
+  /sudo/,
+  /chmod\s+777/,
+  /curl.*\|\s*sh/,
+  /wget.*\|\s*sh/,
+  /;\s*rm/,
+  /\|\s*sh/,
+  /\|\s*bash/,
+];
+
 /** 权限级别 */
 export type PermissionLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -51,6 +63,7 @@ export class SecurityAuditor {
   private policy: SecurityPolicy;
   private auditLog: AuditLogEntry[] = [];
   private runningExecutions = 0;
+  private maxLogSize = 10000;
 
   constructor(policy?: Partial<SecurityPolicy>) {
     this.policy = {
@@ -86,8 +99,11 @@ export class SecurityAuditor {
    * 检查工具调用权限
    */
   checkToolPermission(tool: string, args: unknown): SecurityCheckResult {
-    // 检查是否被禁止
-    if (this.policy.blockedTools.includes(tool)) {
+    // 统一转换为小写进行比较，避免大小写绕过
+    const toolLower = tool.toLowerCase();
+
+    // 检查是否被禁止（大小写不敏感）
+    if (this.policy.blockedTools.some((b) => b.toLowerCase() === toolLower)) {
       return {
         allowed: false,
         requiresConfirmation: false,
@@ -106,9 +122,13 @@ export class SecurityAuditor {
       };
     }
 
-    // 检查权限级别
-    const permission = this.policy.toolPermissions[tool] ?? 'medium';
-    const requiresConfirmation = this.policy.requireConfirmation.includes(tool);
+    // 检查权限级别（大小写不敏感）
+    const permission = this.policy.toolPermissions[tool]
+      ?? this.policy.toolPermissions[toolLower]
+      ?? 'high'; // 未知工具默认为高风险
+    const requiresConfirmation = this.policy.requireConfirmation.some(
+      (r) => r.toLowerCase() === toolLower,
+    );
 
     // 检查敏感参数
     const sensitiveCheck = this.checkSensitiveArgs(tool, args);
@@ -133,6 +153,11 @@ export class SecurityAuditor {
       id: this.generateId(),
       timestamp: new Date(),
     });
+
+    // 限制日志大小，防止内存泄漏
+    if (this.auditLog.length > this.maxLogSize) {
+      this.auditLog.splice(0, this.auditLog.length - this.maxLogSize);
+    }
 
     if (!entry.allowed) {
       logger.warn(`Security violation: ${entry.tool} - ${entry.reason}`);
@@ -218,18 +243,11 @@ export class SecurityAuditor {
 
     const argsObj = args as Record<string, unknown>;
 
-    // 检查 shell 命令
-    if (tool === 'shell' && typeof argsObj.command === 'string') {
+    // 检查 shell 命令（支持大小写不敏感的工具名）
+    if (tool.toLowerCase() === 'shell' && typeof argsObj.command === 'string') {
       const cmd = argsObj.command as string;
-      const dangerousPatterns = [
-        /rm\s+-rf/,
-        /sudo/,
-        /chmod\s+777/,
-        /curl.*\|\s*sh/,
-        /wget.*\|\s*sh/,
-      ];
 
-      for (const pattern of dangerousPatterns) {
+      for (const pattern of DANGEROUS_COMMAND_PATTERNS) {
         if (pattern.test(cmd)) {
           return {
             allowed: false,
@@ -243,15 +261,16 @@ export class SecurityAuditor {
 
     // 检查文件路径
     if (tool.startsWith('file_') && typeof argsObj.path === 'string') {
-      const path = argsObj.path as string;
-      const sensitivePaths = ['/etc', '/var', '/usr', '~/.ssh', '~/.env'];
+      const filePath = argsObj.path as string;
+      // 同时支持 ~ 和绝对路径
+      const sensitivePaths = ['/etc', '/var', '/usr', '/root/.ssh', '/root/.env', '/home', '~/.ssh', '~/.env'];
 
       for (const sensitive of sensitivePaths) {
-        if (path.startsWith(sensitive)) {
+        if (filePath.startsWith(sensitive)) {
           return {
             allowed: true,
             requiresConfirmation: true,
-            reason: `Access to sensitive path: ${path}`,
+            reason: `Access to sensitive path: ${filePath}`,
             riskLevel: 'high',
           };
         }

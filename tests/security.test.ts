@@ -55,7 +55,7 @@ describe('SecurityAuditor', () => {
     it('should handle unknown tools', () => {
       const result = auditor.checkToolPermission('unknown_tool', {});
       expect(result.allowed).toBe(true);
-      expect(result.riskLevel).toBe('medium');
+      expect(result.riskLevel).toBe('high');
     });
   });
 

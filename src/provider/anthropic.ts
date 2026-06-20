@@ -103,9 +103,18 @@ export class AnthropicProvider extends BaseProvider {
     try {
       let lastError: Error | null = null;
       const maxRetries = this.config.maxRetries ?? 3;
+      const mappedTools = tools?.map((t) => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.parameters,
+      }));
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
+          if (mappedTools) {
+            body.tools = mappedTools;
+          }
+
           const response = await fetch(`${this.config.baseUrl}/v1/messages`, {
             method: 'POST',
             headers: this.getHeaders(),
@@ -113,8 +122,12 @@ export class AnthropicProvider extends BaseProvider {
             signal: controller.signal,
           });
 
+          // 不重试 4xx 客户端错误（除了 429 限流）
           if (!response.ok) {
             const errorBody = await response.text();
+            if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+              throw new Error(`Anthropic API error ${response.status}: ${errorBody}`);
+            }
             throw new Error(`Anthropic API error ${response.status}: ${errorBody}`);
           }
 
@@ -122,6 +135,14 @@ export class AnthropicProvider extends BaseProvider {
           return this.parseResponse(data);
         } catch (error) {
           lastError = error as Error;
+          // 不重试中止/超时错误
+          if (error instanceof Error && error.name === 'AbortError') {
+            throw lastError;
+          }
+          // 不重试 4xx 客户端错误
+          if (lastError.message.includes('API error 4')) {
+            throw lastError;
+          }
           if (attempt < maxRetries) {
             await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
           }
