@@ -85,6 +85,16 @@ export class LogsPanel {
 
   /** 渲染 */
   render(engine: TUIEngine): void {
+    // 从数据重建内容
+    this.box.setContent([]);
+    for (const entry of this.entries) {
+      const timestamp = this.formatTime(entry.timestamp);
+      const levelColor = this.getLevelColor(entry.level);
+      const levelTag = colorize(`[${entry.level.toUpperCase().padEnd(5)}]`, levelColor);
+      const moduleTag = colorize(`[${entry.module}]`, Theme.textMuted);
+      const logLine = `${colorize(timestamp, Theme.textMuted)} ${levelTag} ${moduleTag} ${entry.message}`;
+      this.box.appendLine(logLine);
+    }
     this.box.render(engine);
   }
 }

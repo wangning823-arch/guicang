@@ -139,8 +139,8 @@ export class AnthropicProvider extends BaseProvider {
           if (error instanceof Error && error.name === 'AbortError') {
             throw lastError;
           }
-          // 不重试 4xx 客户端错误
-          if (lastError.message.includes('API error 4')) {
+          // 不重试非 429 的 4xx 客户端错误
+          if (lastError.message.includes('API error 4') && !lastError.message.includes('API error 429')) {
             throw lastError;
           }
           if (attempt < maxRetries) {

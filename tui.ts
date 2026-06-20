@@ -114,6 +114,17 @@ async function main() {
 - file_write: 写入文件内容
 - shell: 执行 shell 命令
 
+你可以通过 shell 工具调用 Python 来生成各种文件：
+- 生成 PPT: 使用 python-pptx (from pptx import Presentation)
+- 生成 Word: 使用 python-docx (from docx import Document)
+- 生成 Excel: 使用 openpyxl (from openpyxl import Workbook)
+- 生成 PDF: 使用 reportlab 或 fpdf
+- 生成图片: 使用 Pillow (from PIL import Image)
+- 数据分析: 使用 pandas, matplotlib
+- 生成图表: 使用 matplotlib, plotly
+
+当用户要求生成文档、报表、PPT、Word等时，用 shell 执行 Python 脚本来生成真正的文件，不要生成 HTML 替代品。
+
 请用中文回复用户。`,
   });
 

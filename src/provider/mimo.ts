@@ -93,8 +93,8 @@ export class MimoProvider extends BaseProvider {
       }));
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(
+    let controller = new AbortController();
+    let timeout = setTimeout(
       () => controller.abort(),
       this.config.timeout ?? 60_000,
     );
@@ -104,6 +104,16 @@ export class MimoProvider extends BaseProvider {
       const maxRetries = this.config.maxRetries ?? 3;
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        // 每次重试重置 AbortController
+        if (attempt > 0) {
+          clearTimeout(timeout);
+          controller = new AbortController();
+          timeout = setTimeout(
+            () => controller.abort(),
+            this.config.timeout ?? 60_000,
+          );
+        }
+
         try {
           const response = await fetch(`${this.config.baseUrl}/v1/messages`, {
             method: 'POST',
@@ -112,8 +122,12 @@ export class MimoProvider extends BaseProvider {
             signal: controller.signal,
           });
 
+          // 不重试 4xx 客户端错误（除了 429 限流）
           if (!response.ok) {
             const errorBody = await response.text();
+            if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+              throw new Error(`Mimo API error ${response.status}: ${errorBody}`);
+            }
             throw new Error(`Mimo API error ${response.status}: ${errorBody}`);
           }
 
@@ -121,6 +135,14 @@ export class MimoProvider extends BaseProvider {
           return this.parseResponse(data);
         } catch (error) {
           lastError = error as Error;
+          // 不重试中止/超时错误
+          if (error instanceof Error && error.name === 'AbortError') {
+            throw lastError;
+          }
+          // 不重试 4xx 客户端错误
+          if (lastError.message.includes('API error 4')) {
+            throw lastError;
+          }
           if (attempt < maxRetries) {
             await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
           }

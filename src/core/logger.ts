@@ -61,8 +61,17 @@ export class Logger {
       // 使用自定义输出（TUI 模式）
       globalOutputFn(level, entry);
     } else {
-      // 默认输出到 console
-      const json = JSON.stringify(entry);
+      // 默认输出到 console（安全处理循环引用）
+      let json: string;
+      try {
+        json = JSON.stringify(entry);
+      } catch {
+        // 处理循环引用等无法序列化的情况
+        json = JSON.stringify({
+          ...entry,
+          data: String(entry.data),
+        });
+      }
       switch (level) {
         case 'debug':
           console.debug(json);

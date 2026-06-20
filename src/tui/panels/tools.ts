@@ -82,6 +82,16 @@ export class ToolsPanel {
 
   /** 渲染 */
   render(engine: TUIEngine): void {
+    // 从数据重建内容
+    this.box.setContent([]);
+    for (const entry of this.entries) {
+      const statusIcon = entry.success ? colorize('[OK]', Theme.success) : colorize('[FAIL]', Theme.error);
+      const duration = entry.duration < 1000
+        ? `${entry.duration}ms`
+        : `${(entry.duration / 1000).toFixed(1)}s`;
+      const toolLine = `${statusIcon} ${colorize(entry.name, Theme.primary)} ${colorize(duration, Theme.textMuted)}`;
+      this.box.appendLine(toolLine);
+    }
     this.box.render(engine);
   }
 }

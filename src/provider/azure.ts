@@ -187,7 +187,7 @@ export class AzureProvider extends BaseProvider {
     const toolCalls: ToolCall[] | undefined = choice.message.tool_calls?.map((tc) => ({
       id: tc.id,
       name: tc.function.name,
-      arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>,
+      arguments: this.safeParseJSON(tc.function.arguments),
     }));
 
     return {
@@ -204,5 +204,13 @@ export class AzureProvider extends BaseProvider {
           }
         : undefined,
     };
+  }
+
+  private safeParseJSON(text: string): Record<string, unknown> {
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
   }
 }
