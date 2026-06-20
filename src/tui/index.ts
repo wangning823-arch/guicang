@@ -33,3 +33,6 @@ export { LogsPanel } from './panels/logs.js';
 export type { LogEntry } from './panels/logs.js';
 
 export { HelpPanel } from './panels/help.js';
+
+export { TUIApp } from './app.js';
+export type { TUIAppOptions } from './app.js';

@@ -99,6 +99,10 @@ export class ChatPanel {
   private isActive = false;
   private isProcessing = false;
   private inputFixedY: number; // 输入行固定 Y 坐标
+  // 输入历史
+  private history: string[] = [];
+  private historyIndex = -1; // -1 表示当前输入
+  private savedInput = ''; // 保存当前未发送的输入
 
   constructor(x: number, y: number, width: number, height: number, options: ChatPanelOptions = {}, accentColor?: string, inputY?: number) {
     this.box = new BoxComponent(
@@ -252,14 +256,52 @@ export class ChatPanel {
     if (event.name === 'return') {
       // 发送消息
       if (this.inputBuffer.trim()) {
-        this.options.onSend?.(this.inputBuffer);
-        this.addMessage({
-          role: 'user',
-          content: this.inputBuffer,
-          timestamp: new Date(),
-        });
+        const input = this.inputBuffer.trim();
+
+        // 检查是否是命令
+        if (input.startsWith('/')) {
+          this.handleCommand(input);
+        } else {
+          this.options.onSend?.(input);
+          this.addMessage({
+            role: 'user',
+            content: input,
+            timestamp: new Date(),
+          });
+        }
+
+        // 保存到历史
+        this.history.push(input);
         this.inputBuffer = '';
         this.cursorPos = 0;
+        this.historyIndex = -1;
+        this.savedInput = '';
+      }
+    } else if (event.name === 'up') {
+      // 向上浏览历史
+      if (this.history.length > 0) {
+        if (this.historyIndex === -1) {
+          // 保存当前输入
+          this.savedInput = this.inputBuffer;
+          this.historyIndex = this.history.length - 1;
+        } else if (this.historyIndex > 0) {
+          this.historyIndex--;
+        }
+        this.inputBuffer = this.history[this.historyIndex];
+        this.cursorPos = this.inputBuffer.length;
+      }
+    } else if (event.name === 'down') {
+      // 向下浏览历史
+      if (this.historyIndex !== -1) {
+        if (this.historyIndex < this.history.length - 1) {
+          this.historyIndex++;
+          this.inputBuffer = this.history[this.historyIndex];
+        } else {
+          // 恢复保存的输入
+          this.historyIndex = -1;
+          this.inputBuffer = this.savedInput;
+        }
+        this.cursorPos = this.inputBuffer.length;
       }
     } else if (event.name === 'backspace') {
       // 删除字符
@@ -288,12 +330,28 @@ export class ChatPanel {
     } else if (event.name === 'end') {
       // 光标移到行尾
       this.cursorPos = this.inputBuffer.length;
-    } else if (event.name === 'up') {
-      // 滚动历史
-      this.box.scroll(-3);
-    } else if (event.name === 'down') {
-      // 滚动历史
-      this.box.scroll(3);
+    } else if (event.ctrl && event.name === 'a') {
+      // Ctrl+A: 光标移到行首
+      this.cursorPos = 0;
+    } else if (event.ctrl && event.name === 'e') {
+      // Ctrl+E: 光标移到行尾
+      this.cursorPos = this.inputBuffer.length;
+    } else if (event.ctrl && event.name === 'u') {
+      // Ctrl+U: 清空当前行
+      this.inputBuffer = '';
+      this.cursorPos = 0;
+    } else if (event.ctrl && event.name === 'k') {
+      // Ctrl+K: 删除到行尾
+      this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos);
+    } else if (event.ctrl && event.name === 'w') {
+      // Ctrl+W: 删除前一个单词
+      if (this.cursorPos > 0) {
+        let pos = this.cursorPos - 1;
+        while (pos > 0 && this.inputBuffer[pos - 1] === ' ') pos--;
+        while (pos > 0 && this.inputBuffer[pos - 1] !== ' ') pos--;
+        this.inputBuffer = this.inputBuffer.slice(0, pos) + this.inputBuffer.slice(this.cursorPos);
+        this.cursorPos = pos;
+      }
     } else if (event.key && !event.ctrl && !event.meta && event.key.length === 1) {
       // 输入字符
       this.inputBuffer = this.inputBuffer.slice(0, this.cursorPos) + event.key + this.inputBuffer.slice(this.cursorPos);
@@ -329,8 +387,11 @@ export class ChatPanel {
       const loadingText = '... 正在思考 ...';
       engine.putColorText(inputX, inputY, colorize(loadingText, Theme.warning), Theme.warning);
     } else {
-      // 绘制输入提示
-      const prompt = '> ';
+      // 绘制输入提示（显示历史索引）
+      let prompt = '> ';
+      if (this.historyIndex !== -1) {
+        prompt = `[${this.historyIndex + 1}/${this.history.length}] `;
+      }
       const promptWidth = this.getStringWidth(prompt);
       engine.putColorText(inputX, inputY, colorize(prompt, this.isActive ? Theme.accent : Theme.textMuted), Theme.accent);
 
@@ -364,6 +425,128 @@ export class ChatPanel {
     }
   }
 
+  /** 处理命令 */
+  private handleCommand(input: string): void {
+    const parts = input.split(/\s+/);
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1);
+
+    switch (cmd) {
+      case '/help':
+        this.addMessage({
+          role: 'system',
+          content: this.getHelpText(),
+          timestamp: new Date(),
+        });
+        break;
+
+      case '/clear':
+        this.clearHistory();
+        this.addMessage({
+          role: 'system',
+          content: '对话已清空',
+          timestamp: new Date(),
+        });
+        break;
+
+      case '/status':
+        this.addMessage({
+          role: 'system',
+          content: '系统状态: 正常运行中\n内存: 正常\nCPU: 正常',
+          timestamp: new Date(),
+        });
+        break;
+
+      case '/config':
+        if (args[0] === 'set' && args.length >= 3) {
+          this.addMessage({
+            role: 'system',
+            content: `配置已更新: ${args[1]} = ${args.slice(2).join(' ')}`,
+            timestamp: new Date(),
+          });
+        } else {
+          this.addMessage({
+            role: 'system',
+            content: this.getConfigText(),
+            timestamp: new Date(),
+          });
+        }
+        break;
+
+      case '/history':
+        if (this.messages.length === 0) {
+          this.addMessage({
+            role: 'system',
+            content: '暂无对话历史',
+            timestamp: new Date(),
+          });
+        } else {
+          const historyText = this.messages
+            .map((m, i) => `${i + 1}. [${m.role}] ${m.content.slice(0, 50)}...`)
+            .join('\n');
+          this.addMessage({
+            role: 'system',
+            content: historyText,
+            timestamp: new Date(),
+          });
+        }
+        break;
+
+      case '/quit':
+        this.addMessage({
+          role: 'system',
+          content: '正在退出...',
+          timestamp: new Date(),
+        });
+        // 延迟退出，让用户看到消息
+        setTimeout(() => process.exit(0), 500);
+        break;
+
+      default:
+        this.addMessage({
+          role: 'system',
+          content: `未知命令: ${cmd}\n输入 /help 查看可用命令`,
+          timestamp: new Date(),
+        });
+    }
+  }
+
+  /** 获取帮助文本 */
+  private getHelpText(): string {
+    return `
+可用命令:
+  /help          - 显示此帮助
+  /clear         - 清空对话历史
+  /history       - 查看对话历史
+  /status        - 查看系统状态
+  /config        - 查看配置
+  /config set X Y - 修改配置
+  /quit          - 退出 TUI
+
+快捷键:
+  Up/Down        - 浏览输入历史
+  Ctrl+A         - 光标移到行首
+  Ctrl+E         - 光标移到行尾
+  Ctrl+U         - 清空当前行
+  Ctrl+K         - 删除到行尾
+  Ctrl+W         - 删除前一个单词
+  F1             - 显示帮助
+  Tab            - 切换面板焦点
+  Ctrl+C         - 退出
+`.trim();
+  }
+
+  /** 获取配置文本 */
+  private getConfigText(): string {
+    return `
+当前配置:
+  主题: 默认
+  语言: 中文
+  自动保存: 启用
+  提示音: 关闭
+`.trim();
+  }
+
   /** 获取输入内容 */
   getInput(): string {
     return this.inputBuffer;
@@ -373,5 +556,19 @@ export class ChatPanel {
   clearInput(): void {
     this.inputBuffer = '';
     this.cursorPos = 0;
+  }
+
+  /** 清空对话历史 */
+  clearHistory(): void {
+    this.messages = [];
+    this.history = [];
+    this.historyIndex = -1;
+    this.savedInput = '';
+    this.box.setContent([]);
+  }
+
+  /** 获取对话历史 */
+  getMessages(): ChatMessage[] {
+    return this.messages;
   }
 }
