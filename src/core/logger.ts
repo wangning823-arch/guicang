@@ -20,6 +20,17 @@ export interface LogEntry {
   data?: unknown;
 }
 
+/** 日志输出函数类型 */
+export type LogOutputFn = (level: LogLevel, entry: LogEntry) => void;
+
+/** 全局日志输出函数（可被 TUI 等覆盖） */
+let globalOutputFn: LogOutputFn | null = null;
+
+/** 设置全局日志输出函数 */
+export function setLogOutput(fn: LogOutputFn | null): void {
+  globalOutputFn = fn;
+}
+
 export class Logger {
   private minLevel: LogLevel;
 
@@ -34,7 +45,7 @@ export class Logger {
     return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[this.minLevel];
   }
 
-  private format(level: LogLevel, message: string, data?: unknown): string {
+  private format(level: LogLevel, message: string, data?: unknown): LogEntry {
     const entry: LogEntry = {
       level,
       message,
@@ -42,30 +53,54 @@ export class Logger {
       module: this.module,
     };
     if (data !== undefined) entry.data = data;
-    return JSON.stringify(entry);
+    return entry;
+  }
+
+  private output(level: LogLevel, entry: LogEntry): void {
+    if (globalOutputFn) {
+      // 使用自定义输出（TUI 模式）
+      globalOutputFn(level, entry);
+    } else {
+      // 默认输出到 console
+      const json = JSON.stringify(entry);
+      switch (level) {
+        case 'debug':
+          console.debug(json);
+          break;
+        case 'info':
+          console.info(json);
+          break;
+        case 'warn':
+          console.warn(json);
+          break;
+        case 'error':
+          console.error(json);
+          break;
+      }
+    }
   }
 
   debug(message: string, data?: unknown): void {
     if (this.shouldLog('debug')) {
-      console.debug(this.format('debug', message, data));
+      this.output('debug', this.format('debug', message, data));
     }
   }
 
   info(message: string, data?: unknown): void {
     if (this.shouldLog('info')) {
-      console.info(this.format('info', message, data));
+      this.output('info', this.format('info', message, data));
     }
   }
 
   warn(message: string, data?: unknown): void {
     if (this.shouldLog('warn')) {
-      console.warn(this.format('warn', message, data));
+      this.output('warn', this.format('warn', message, data));
     }
   }
 
   error(message: string, data?: unknown): void {
     if (this.shouldLog('error')) {
-      console.error(this.format('error', message, data));
+      this.output('error', this.format('error', message, data));
     }
   }
 

@@ -6,6 +6,64 @@
 import * as readline from 'node:readline';
 import { Colors, colorize } from './theme.js';
 
+/**
+ * 获取字符的显示宽度
+ * 中文字符和全角字符占2个宽度，其他占1个
+ */
+function getCharWidth(char: string): number {
+  const code = char.codePointAt(0);
+  if (!code) return 1;
+
+  // CJK统一汉字及其扩展
+  if (
+    (code >= 0x4E00 && code <= 0x9FFF) ||   // CJK统一汉字
+    (code >= 0x3400 && code <= 0x4DBF) ||   // CJK扩展A
+    (code >= 0x20000 && code <= 0x2A6DF) || // CJK扩展B
+    (code >= 0xF900 && code <= 0xFAFF) ||   // CJK兼容汉字
+    (code >= 0x2F800 && code <= 0x2FA1F)    // CJK兼容补充
+  ) {
+    return 2;
+  }
+
+  // 全角ASCII空格和标点
+  if (
+    (code >= 0xFF01 && code <= 0xFF60) ||   // 全角ASCII
+    (code >= 0xFFE0 && code <= 0xFFE6) ||   // 全角货币
+    (code >= 0x3000 && code <= 0x303F) ||   // CJK符号和标点
+    (code >= 0xFE30 && code <= 0xFE4F)      // CJK兼容形式
+  ) {
+    return 2;
+  }
+
+  // Emoji和其他特殊字符
+  if (
+    (code >= 0x1F300 && code <= 0x1F9FF) || // Emoji
+    (code >= 0x2600 && code <= 0x27BF) ||   // 杂项符号
+    (code >= 0x1F600 && code <= 0x1F64F) || // 表情符号
+    (code >= 0x1F680 && code <= 0x1F6FF) || // 交通和地图符号
+    (code >= 0x1F1E0 && code <= 0x1F1FF)    // 旗帜符号
+  ) {
+    return 2;
+  }
+
+  return 1;
+}
+
+/**
+ * 获取字符串的显示宽度（考虑多字节字符）
+ */
+function getStringWidth(str: string): number {
+  let width = 0;
+  for (const char of str) {
+    // 跳过ANSI转义序列
+    if (char === '\x1b') {
+      continue;
+    }
+    width += getCharWidth(char);
+  }
+  return width;
+}
+
 /** 绘图坐标 */
 export interface Position {
   x: number;
@@ -44,6 +102,7 @@ export class TUIEngine {
   private prevBuffer: string[][] = [];
   private running = false;
   private keyHandlers = new Map<string, (event: KeyEvent) => void>();
+  private panelHandlers: Array<(event: KeyEvent) => void> = [];
   private renderCallbacks: Array<() => void> = [];
   private refreshInterval: ReturnType<typeof setInterval> | null = null;
   private rl: readline.Interface | null = null;
@@ -127,11 +186,21 @@ export class TUIEngine {
     if (handler) {
       handler(event);
     }
+
+    // 触发所有面板处理器（用于输入捕获）
+    for (const panelHandler of this.panelHandlers) {
+      panelHandler(event);
+    }
   }
 
   /** 注册按键处理器 */
   onKey(name: string, handler: (event: KeyEvent) => void): void {
     this.keyHandlers.set(name, handler);
+  }
+
+  /** 注册面板处理器（用于输入捕获） */
+  onPanelKey(handler: (event: KeyEvent) => void): void {
+    this.panelHandlers.push(handler);
   }
 
   /** 注册渲染回调 */
@@ -169,11 +238,12 @@ export class TUIEngine {
   putText(x: number, y: number, text: string): void {
     let currentX = x;
 
-    // 简单处理：逐字符写入（不含 ANSI 转义）
-    for (let i = 0; i < text.length; i++) {
+    // 逐字符写入（处理多字节字符）
+    for (const char of text) {
       if (currentX < this.width && y >= 0 && y < this.height) {
-        this.buffer[y][currentX] = text[i];
-        currentX++;
+        this.buffer[y][currentX] = char;
+        // 宽字符在终端中自动占用2列，只需跳过一个位置
+        currentX += getCharWidth(char);
       }
     }
   }
@@ -202,7 +272,8 @@ export class TUIEngine {
 
       if (currentX >= 0 && currentX < this.width) {
         this.buffer[y][currentX] = char;
-        currentX++;
+        // 宽字符在终端中自动占用2列
+        currentX += getCharWidth(char);
       }
     }
   }

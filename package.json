@@ -13,7 +13,8 @@
     "lint": "eslint src/ tests/",
     "lint:fix": "eslint src/ tests/ --fix",
     "typecheck": "tsc --noEmit",
-    "dev": "tsx src/index.ts",
+    "dev": "npx tsx src/index.ts",
+    "tui": "npx tsx tui.ts",
     "check": "npm run typecheck && npm run lint && npm test"
   },
   "keywords": [
