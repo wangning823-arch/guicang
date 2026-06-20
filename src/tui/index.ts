@@ -20,8 +20,16 @@ export type { StatusPanelData } from './panels/status.js';
 export { MetricsPanel } from './panels/metrics.js';
 export type { MetricsPanelData } from './panels/metrics.js';
 
+export { TokensPanel } from './panels/tokens.js';
+export type { TokenUsageData, TokensPanelOptions } from './panels/tokens.js';
+
+export { AgentsPanel } from './panels/agents.js';
+export type { AgentInfo } from './panels/agents.js';
+
 export { ToolsPanel } from './panels/tools.js';
 export type { ToolCallEntry } from './panels/tools.js';
 
 export { LogsPanel } from './panels/logs.js';
 export type { LogEntry } from './panels/logs.js';
+
+export { HelpPanel } from './panels/help.js';
