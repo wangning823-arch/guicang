@@ -42,12 +42,23 @@ export class MetricsPanel {
   };
   private isDirty = true;
   private formattedContent: string[] = [];
+  private isActive = false;
 
   constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
       { x, y, width, height },
       { title: '[MET] 性能指标', border: true, accentColor },
     );
+  }
+
+  /** 设置激活状态 */
+  setActive(active: boolean): void {
+    this.isActive = active;
+    if (active) {
+      this.box.options.accentColor = Theme.borderFocused;
+    } else {
+      this.box.options.accentColor = Theme.metricsPanel;
+    }
   }
 
   /** 更新数据 */

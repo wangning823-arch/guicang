@@ -25,6 +25,7 @@ export class LogsPanel {
   private maxEntries: number;
   private isDirty = true;
   private formattedContent: string[] = [];
+  private isActive = false;
 
   constructor(x: number, y: number, width: number, height: number, options: LogsPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
@@ -32,6 +33,16 @@ export class LogsPanel {
       { title: '[LOG] 日志', border: true, accentColor },
     );
     this.maxEntries = options.maxEntries ?? 100;
+  }
+
+  /** 设置激活状态 */
+  setActive(active: boolean): void {
+    this.isActive = active;
+    if (active) {
+      this.box.options.accentColor = Theme.borderFocused;
+    } else {
+      this.box.options.accentColor = Theme.info;
+    }
   }
 
   /** 添加日志条目 */

@@ -135,12 +135,36 @@ export class TUIApp {
       const p = this.panels[key]?.panel;
       if (p instanceof ChatPanel) {
         p.setActive(false);
+      } else if (p instanceof StatusPanel) {
+        p.setActive(false);
+      } else if (p instanceof MetricsPanel) {
+        p.setActive(false);
+      } else if (p instanceof TokensPanel) {
+        p.setActive(false);
+      } else if (p instanceof AgentsPanel) {
+        p.setActive(false);
+      } else if (p instanceof ToolsPanel) {
+        p.setActive(false);
+      } else if (p instanceof LogsPanel) {
+        p.setActive(false);
       }
     }
 
     // 设置当前面板为激活状态
     const current = this.panels[type]?.panel;
     if (current instanceof ChatPanel) {
+      current.setActive(true);
+    } else if (current instanceof StatusPanel) {
+      current.setActive(true);
+    } else if (current instanceof MetricsPanel) {
+      current.setActive(true);
+    } else if (current instanceof TokensPanel) {
+      current.setActive(true);
+    } else if (current instanceof AgentsPanel) {
+      current.setActive(true);
+    } else if (current instanceof ToolsPanel) {
+      current.setActive(true);
+    } else if (current instanceof LogsPanel) {
       current.setActive(true);
     }
   }
