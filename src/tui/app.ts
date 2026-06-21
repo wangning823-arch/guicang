@@ -37,6 +37,7 @@ export class TUIApp {
   private helpPanel: HelpPanel;
   private options: TUIAppOptions;
   private statusBarY = 0;
+  private confirmExit = false;
 
   constructor(options: TUIAppOptions = {}) {
     this.engine = new TUIEngine();
@@ -164,7 +165,14 @@ export class TUIApp {
 
   /** 显示退出确认 */
   private showExitConfirm(): void {
-    // 绘制确认对话框
+    this.confirmExit = true;
+    this.engine.render();
+  }
+
+  /** 渲染退出确认对话框 */
+  private renderExitConfirm(): void {
+    if (!this.confirmExit) return;
+
     const width = this.engine.getWidth();
     const height = this.engine.getHeight();
 
@@ -202,31 +210,6 @@ export class TUIApp {
       colorize('[Y] 确定  [N] 取消', Theme.primary),
       Theme.primary,
     );
-
-    // 等待用户输入
-    const handleConfirm = (event: KeyEvent) => {
-      if (event.name === 'y' || event.name === 'Y' || event.name === 'return') {
-        this.engine.stop();
-        process.exit(0);
-      } else if (event.name === 'n' || event.name === 'N' || event.name === 'escape') {
-        this.engine.render();
-      }
-    };
-
-    // 临时注册确认处理器
-    const originalHandler = this.engine['panelHandlers'].pop();
-    this.engine.onPanelKey(handleConfirm);
-
-    // 渲染
-    this.engine.render();
-
-    // 恢复原始处理器
-    setTimeout(() => {
-      this.engine['panelHandlers'].pop(); // 移除确认处理器
-      if (originalHandler) {
-        this.engine.onPanelKey(originalHandler);
-      }
-    }, 100);
   }
 
   /** 处理 Q 键退出 */
@@ -240,6 +223,18 @@ export class TUIApp {
 
   /** 处理全局按键 */
   private handleGlobalKey(event: KeyEvent): void {
+    // 退出确认状态
+    if (this.confirmExit) {
+      if (event.name === 'y' || event.name === 'Y' || event.name === 'return') {
+        this.engine.stop();
+        process.exit(0);
+      } else if (event.name === 'n' || event.name === 'N' || event.name === 'escape') {
+        this.confirmExit = false;
+        this.engine.render();
+      }
+      return;
+    }
+
     // 帮助面板打开时，任何键都关闭帮助
     if (this.helpPanel.isVisible()) {
       if (event.name === 'f1' || event.name === 'escape' || event.name === 'q') {
@@ -357,6 +352,9 @@ export class TUIApp {
     if (this.helpPanel.isVisible()) {
       this.helpPanel.render(this.engine);
     }
+
+    // 渲染退出确认对话框（最顶层）
+    this.renderExitConfirm();
 
     // 渲染差异
     this.engine.render();
