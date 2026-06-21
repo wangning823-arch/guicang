@@ -389,7 +389,14 @@ export class ChatPanel {
       if (this.isActive) {
         const cursorX = inputX + promptWidth + cursorWidth - scrollOffset;
         if (cursorX >= inputX + promptWidth && cursorX < inputX + inputWidth) {
-          engine.putChar(cursorX, inputY, '_', Theme.accent);
+          // 使用块状光标，如果光标位置有字符则反色显示
+          if (this.cursorPos < this.inputBuffer.length) {
+            // 光标下有字符，使用反色显示
+            engine.putChar(cursorX, inputY, this.inputBuffer[this.cursorPos], Theme.bgActive);
+          } else {
+            // 光标在末尾，使用块状光标
+            engine.putChar(cursorX, inputY, '█', Theme.accent);
+          }
         }
       }
     }
