@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.4.0] - 2026-06-21
+
+### Fixed
+- 修复 Box 组件内容高度计算错误
+- 修复输入行位置计算错误
+- 修复退出确认逻辑竞态条件
+- 修复终端窗口调整大小时不更新布局
+
+### Added
+- 提取 getCharWidth/getStringWidth/truncateString 为共享工具函数
+- 添加 Box inputMode 选项支持输入行预留空间
+- 添加 TUIEngine.handleResize() 方法
+- 为所有面板添加 setActive() 方法
+- 改进光标渲染（使用块状光标 █）
+- 支持 ANSI bold/dim/italic/underline 样式解析
+
+### Changed
+- 优化 renderDiff 性能，使用数组收集输出
+- 合并同行连续变化单元格渲染
+- 使用 swap 模式替换深拷贝
+- 优化 LogsPanel、MetricsPanel、AgentsPanel、ToolsPanel 内容更新
+- 使用 isDirty 标志避免不必要的重建
+- 使用状态标志替代 handler 栈操作
+
 ## [1.3.0] - 2026-06-20
 
 ### Added
