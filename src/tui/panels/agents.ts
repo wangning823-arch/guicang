@@ -21,6 +21,8 @@ export class AgentsPanel {
   private box: BoxComponent;
   private agents: AgentInfo[] = [];
   private selected = 0;
+  private isDirty = true;
+  private formattedContent: string[] = [];
 
   constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
@@ -32,12 +34,14 @@ export class AgentsPanel {
   /** 更新 Agent 列表 */
   updateAgents(agents: AgentInfo[]): void {
     this.agents = agents;
+    this.isDirty = true;
   }
 
   /** 选择上一个 */
   selectPrev(): void {
     if (this.selected > 0) {
       this.selected--;
+      this.isDirty = true;
     }
   }
 
@@ -45,6 +49,7 @@ export class AgentsPanel {
   selectNext(): void {
     if (this.selected < this.agents.length - 1) {
       this.selected++;
+      this.isDirty = true;
     }
   }
 
@@ -57,6 +62,8 @@ export class AgentsPanel {
   clear(): void {
     this.agents = [];
     this.selected = 0;
+    this.formattedContent = [];
+    this.isDirty = true;
   }
 
   /** 格式化运行时间 */
@@ -80,14 +87,14 @@ export class AgentsPanel {
     }
   }
 
-  /** 渲染 */
-  render(engine: TUIEngine): void {
-    this.box.setContent([]);
+  /** 格式化内容 */
+  private formatContent(): string[] {
+    const content: string[] = [];
 
     if (this.agents.length === 0) {
-      this.box.appendLine(colorize('  暂无运行中的 Agent', Theme.textMuted));
-      this.box.appendLine('');
-      this.box.appendLine(colorize('  使用 /agent spawn 创建新 Agent', Theme.textDim));
+      content.push(colorize('  暂无运行中的 Agent', Theme.textMuted));
+      content.push('');
+      content.push(colorize('  使用 /agent spawn 创建新 Agent', Theme.textDim));
     } else {
       for (let i = 0; i < this.agents.length; i++) {
         const agent = this.agents[i];
@@ -111,21 +118,32 @@ export class AgentsPanel {
             : Theme.warning,
         );
 
-        this.box.appendLine(`${indicator.render()} ${name} [${statusText}]`);
+        content.push(`${indicator.render()} ${name} [${statusText}]`);
 
         // 详细信息（缩进显示）
         if (agent.currentTask) {
-          this.box.appendLine(`    任务: ${colorize(agent.currentTask, Theme.textMuted)}`);
+          content.push(`    任务: ${colorize(agent.currentTask, Theme.textMuted)}`);
         }
-        this.box.appendLine(`    完成: ${agent.completedTasks}  最后活跃: ${this.formatTimeAgo(agent.lastActive)}`);
+        content.push(`    完成: ${agent.completedTasks}  最后活跃: ${this.formatTimeAgo(agent.lastActive)}`);
 
         // 分隔线
         if (i < this.agents.length - 1) {
-          this.box.appendLine(colorize('  ─────────────────────────', Theme.textDim));
+          content.push(colorize('  ─────────────────────────', Theme.textDim));
         }
       }
     }
 
+    return content;
+  }
+
+  /** 渲染 */
+  render(engine: TUIEngine): void {
+    // 仅在数据变化时重建内容
+    if (this.isDirty) {
+      this.formattedContent = this.formatContent();
+      this.box.setContent(this.formattedContent);
+      this.isDirty = false;
+    }
     this.box.render(engine);
   }
 }

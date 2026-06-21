@@ -257,6 +257,20 @@ export class TUIEngine {
                   96: Colors.brightCyan, 97: Colors.brightWhite,
                 };
                 currentColor = colorMap[code] || defaultColor;
+              } else if (code === 1) {
+                // Bold - 保持当前颜色，但可以添加粗体样式
+                // 由于我们存储的是 ANSI 序列，这里简单保持
+              } else if (code === 2) {
+                // Dim - 使用暗灰色
+                currentColor = Colors.darkGray;
+              } else if (code === 3) {
+                // Italic - 保持当前颜色
+              } else if (code === 4) {
+                // Underline - 保持当前颜色
+              } else if (code >= 40 && code <= 47) {
+                // 背景色 - 保持当前前景色
+              } else if (code >= 100 && code <= 107) {
+                // 亮背景色 - 保持当前前景色
               }
             }
           }
@@ -333,10 +347,13 @@ export class TUIEngine {
 
   /** 渲染差异（只更新变化的字符） */
   private renderDiff(): void {
-    let output = '';
+    const output: string[] = [];
     let lastColor = '';
 
     for (let y = 0; y < this.height; y++) {
+      let runStart = -1;
+      let runColor = '';
+
       for (let x = 0; x < this.width; x++) {
         const current = this.buffer[y][x];
 
@@ -349,30 +366,79 @@ export class TUIEngine {
 
         // 比较字符和颜色
         if (current.char !== prev.char || current.color !== prev.color) {
-          // 颜色变化时插入颜色代码
-          if (current.color !== lastColor) {
-            output += current.color;
-            lastColor = current.color;
+          // 开始新的连续变化段
+          if (runStart === -1) {
+            runStart = x;
+            runColor = current.color;
           }
-          // 移动光标并写入字符
-          output += `\x1b[${y + 1};${x + 1}H${current.char}`;
+
+          // 如果颜色变化，结束当前段并开始新段
+          if (current.color !== runColor) {
+            // 输出当前段
+            this.flushRun(output, y, runStart, x - 1, runColor, lastColor);
+            lastColor = runColor;
+            runStart = x;
+            runColor = current.color;
+          }
+        } else {
+          // 结束连续变化段
+          if (runStart !== -1) {
+            this.flushRun(output, y, runStart, x - 1, runColor, lastColor);
+            lastColor = runColor;
+            runStart = -1;
+          }
         }
+      }
+
+      // 结束行末的连续变化段
+      if (runStart !== -1) {
+        this.flushRun(output, y, runStart, this.width - 1, runColor, lastColor);
+        lastColor = runColor;
       }
     }
 
     // 重置颜色
     if (lastColor !== Colors.reset) {
-      output += Colors.reset;
+      output.push(Colors.reset);
     }
 
-    if (output) {
-      process.stdout.write(output);
+    if (output.length > 0) {
+      process.stdout.write(output.join(''));
     }
 
-    // 保存当前缓冲区（深拷贝）
-    this.prevBuffer = this.buffer.map((row) =>
-      row.map((cell) => ({ ...cell }))
-    );
+    // 交换缓冲区（避免深拷贝）
+    const temp = this.prevBuffer;
+    this.prevBuffer = this.buffer;
+    this.buffer = temp;
+
+    // 清空当前缓冲区以便下次渲染
+    this.clearBuffer();
+  }
+
+  /** 输出连续变化段 */
+  private flushRun(
+    output: string[],
+    y: number,
+    startX: number,
+    endX: number,
+    color: string,
+    lastColor: string,
+  ): void {
+    // 颜色变化时插入颜色代码
+    if (color !== lastColor) {
+      output.push(color);
+    }
+
+    // 移动光标到起始位置
+    output.push(`\x1b[${y + 1};${startX + 1}H`);
+
+    // 输出连续字符
+    for (let x = startX; x <= endX; x++) {
+      const cell = this.buffer[y][x];
+      if (!cell.wideContinuation) {
+        output.push(cell.char);
+      }
+    }
   }
 
   /** 完整重绘 */

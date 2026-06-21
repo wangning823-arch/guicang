@@ -40,6 +40,8 @@ export class MetricsPanel {
     tokens: { total: 0, prompt: 0, completion: 0 },
     tools: { total: 0, success: 0, failed: 0 },
   };
+  private isDirty = true;
+  private formattedContent: string[] = [];
 
   constructor(x: number, y: number, width: number, height: number, accentColor?: string) {
     this.box = new BoxComponent(
@@ -51,6 +53,7 @@ export class MetricsPanel {
   /** 更新数据 */
   updateData(data: Partial<MetricsPanelData>): void {
     this.data = { ...this.data, ...data };
+    this.isDirty = true;
   }
 
   /** 记录请求 */
@@ -61,6 +64,7 @@ export class MetricsPanel {
     } else {
       this.data.requests.failed++;
     }
+    this.isDirty = true;
   }
 
   /** 记录延迟 */
@@ -73,6 +77,7 @@ export class MetricsPanel {
     this.data.latency.avg = this.data.latency.history.reduce((a, b) => a + b, 0) / this.data.latency.history.length;
     this.data.latency.min = Math.min(...this.data.latency.history);
     this.data.latency.max = Math.max(...this.data.latency.history);
+    this.isDirty = true;
   }
 
   /** 记录 Token 使用 */
@@ -80,6 +85,7 @@ export class MetricsPanel {
     this.data.tokens.prompt += prompt;
     this.data.tokens.completion += completion;
     this.data.tokens.total += prompt + completion;
+    this.isDirty = true;
   }
 
   /** 记录工具调用 */
@@ -90,6 +96,7 @@ export class MetricsPanel {
     } else {
       this.data.tools.failed++;
     }
+    this.isDirty = true;
   }
 
   /** 清空数据 */
@@ -100,41 +107,54 @@ export class MetricsPanel {
       tokens: { total: 0, prompt: 0, completion: 0 },
       tools: { total: 0, success: 0, failed: 0 },
     };
+    this.formattedContent = [];
+    this.isDirty = true;
   }
 
-  /** 渲染 */
-  render(engine: TUIEngine): void {
-    this.box.setContent([]);
+  /** 格式化内容 */
+  private formatContent(): string[] {
+    const content: string[] = [];
 
     // 请求数统计
-    this.box.appendLine(colorize('请求数:', Theme.textMuted));
-    this.box.appendLine(`  成功: ${colorize(String(this.data.requests.success), Theme.success)}  失败: ${colorize(String(this.data.requests.failed), Theme.error)}  总计: ${this.data.requests.total}`);
+    content.push(colorize('请求数:', Theme.textMuted));
+    content.push(`  成功: ${colorize(String(this.data.requests.success), Theme.success)}  失败: ${colorize(String(this.data.requests.failed), Theme.error)}  总计: ${this.data.requests.total}`);
 
     // 延迟统计
-    this.box.appendLine('');
-    this.box.appendLine(colorize('延迟:', Theme.textMuted));
-    this.box.appendLine(`  平均: ${Math.round(this.data.latency.avg)}ms  最小: ${this.data.latency.min}ms  最大: ${this.data.latency.max}ms`);
+    content.push('');
+    content.push(colorize('延迟:', Theme.textMuted));
+    content.push(`  平均: ${Math.round(this.data.latency.avg)}ms  最小: ${this.data.latency.min}ms  最大: ${this.data.latency.max}ms`);
 
     // 延迟趋势图
     if (this.data.latency.history.length > 0) {
       const sparkline = new Sparkline(this.data.latency.history, { width: 15, color: Theme.primary });
-      this.box.appendLine(`  趋势: ${sparkline.render()}`);
+      content.push(`  趋势: ${sparkline.render()}`);
     }
 
     // Token 使用
-    this.box.appendLine('');
-    this.box.appendLine(colorize('Token 使用:', Theme.textMuted));
-    this.box.appendLine(`  Prompt: ${formatNumber(this.data.tokens.prompt)}  Completion: ${formatNumber(this.data.tokens.completion)}`);
-    this.box.appendLine(`  总计: ${formatNumber(this.data.tokens.total)}`);
+    content.push('');
+    content.push(colorize('Token 使用:', Theme.textMuted));
+    content.push(`  Prompt: ${formatNumber(this.data.tokens.prompt)}  Completion: ${formatNumber(this.data.tokens.completion)}`);
+    content.push(`  总计: ${formatNumber(this.data.tokens.total)}`);
 
     // 工具调用统计
-    this.box.appendLine('');
-    this.box.appendLine(colorize('工具调用:', Theme.textMuted));
+    content.push('');
+    content.push(colorize('工具调用:', Theme.textMuted));
     const toolSuccessRate = this.data.tools.total > 0
       ? Math.round((this.data.tools.success / this.data.tools.total) * 100)
       : 100;
-    this.box.appendLine(`  成功: ${colorize(String(this.data.tools.success), Theme.success)}  失败: ${colorize(String(this.data.tools.failed), Theme.error)}  成功率: ${toolSuccessRate}%`);
+    content.push(`  成功: ${colorize(String(this.data.tools.success), Theme.success)}  失败: ${colorize(String(this.data.tools.failed), Theme.error)}  成功率: ${toolSuccessRate}%`);
 
+    return content;
+  }
+
+  /** 渲染 */
+  render(engine: TUIEngine): void {
+    // 仅在数据变化时重建内容
+    if (this.isDirty) {
+      this.formattedContent = this.formatContent();
+      this.box.setContent(this.formattedContent);
+      this.isDirty = false;
+    }
     this.box.render(engine);
   }
 }

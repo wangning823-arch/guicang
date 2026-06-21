@@ -23,6 +23,8 @@ export class LogsPanel {
   private box: BoxComponent;
   private entries: LogEntry[] = [];
   private maxEntries: number;
+  private isDirty = true;
+  private formattedContent: string[] = [];
 
   constructor(x: number, y: number, width: number, height: number, options: LogsPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
@@ -41,14 +43,22 @@ export class LogsPanel {
       this.entries.shift();
     }
 
-    // 格式化日志
-    const timestamp = this.formatTime(entry.timestamp);
-    const levelColor = this.getLevelColor(entry.level);
-    const levelTag = colorize(`[${entry.level.toUpperCase().padEnd(5)}]`, levelColor);
-    const moduleTag = colorize(`[${entry.module}]`, Theme.textMuted);
+    // 标记需要更新
+    this.isDirty = true;
+  }
 
-    const logLine = `${colorize(timestamp, Theme.textMuted)} ${levelTag} ${moduleTag} ${entry.message}`;
-    this.box.appendLine(logLine);
+  /** 格式化所有条目 */
+  private formatEntries(): string[] {
+    const content: string[] = [];
+    for (const entry of this.entries) {
+      const timestamp = this.formatTime(entry.timestamp);
+      const levelColor = this.getLevelColor(entry.level);
+      const levelTag = colorize(`[${entry.level.toUpperCase().padEnd(5)}]`, levelColor);
+      const moduleTag = colorize(`[${entry.module}]`, Theme.textMuted);
+      const logLine = `${colorize(timestamp, Theme.textMuted)} ${levelTag} ${moduleTag} ${entry.message}`;
+      content.push(logLine);
+    }
+    return content;
   }
 
   /** 获取日志级别颜色 */
@@ -75,7 +85,9 @@ export class LogsPanel {
   /** 清空日志 */
   clear(): void {
     this.entries = [];
+    this.formattedContent = [];
     this.box.setContent([]);
+    this.isDirty = true;
   }
 
   /** 获取最近的日志 */
@@ -85,15 +97,11 @@ export class LogsPanel {
 
   /** 渲染 */
   render(engine: TUIEngine): void {
-    // 从数据重建内容
-    this.box.setContent([]);
-    for (const entry of this.entries) {
-      const timestamp = this.formatTime(entry.timestamp);
-      const levelColor = this.getLevelColor(entry.level);
-      const levelTag = colorize(`[${entry.level.toUpperCase().padEnd(5)}]`, levelColor);
-      const moduleTag = colorize(`[${entry.module}]`, Theme.textMuted);
-      const logLine = `${colorize(timestamp, Theme.textMuted)} ${levelTag} ${moduleTag} ${entry.message}`;
-      this.box.appendLine(logLine);
+    // 仅在数据变化时重建内容
+    if (this.isDirty) {
+      this.formattedContent = this.formatEntries();
+      this.box.setContent(this.formattedContent);
+      this.isDirty = false;
     }
     this.box.render(engine);
   }

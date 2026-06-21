@@ -24,6 +24,8 @@ export class ToolsPanel {
   private box: BoxComponent;
   private entries: ToolCallEntry[] = [];
   private maxEntries: number;
+  private isDirty = true;
+  private formattedContent: string[] = [];
 
   constructor(x: number, y: number, width: number, height: number, options: ToolsPanelOptions = {}, accentColor?: string) {
     this.box = new BoxComponent(
@@ -42,20 +44,16 @@ export class ToolsPanel {
       this.entries.shift();
     }
 
-    // 格式化工具调用
-    const statusIcon = entry.success ? colorize('[OK]', Theme.success) : colorize('[FAIL]', Theme.error);
-    const duration = entry.duration < 1000
-      ? `${entry.duration}ms`
-      : `${(entry.duration / 1000).toFixed(1)}s`;
-
-    const toolLine = `${statusIcon} ${colorize(entry.name, Theme.primary)} ${colorize(duration, Theme.textMuted)}`;
-    this.box.appendLine(toolLine);
+    // 标记需要更新
+    this.isDirty = true;
   }
 
   /** 清空记录 */
   clear(): void {
     this.entries = [];
+    this.formattedContent = [];
     this.box.setContent([]);
+    this.isDirty = true;
   }
 
   /** 获取最近的工具调用 */
@@ -80,17 +78,27 @@ export class ToolsPanel {
     return { total, success, failed, avgDuration };
   }
 
-  /** 渲染 */
-  render(engine: TUIEngine): void {
-    // 从数据重建内容
-    this.box.setContent([]);
+  /** 格式化内容 */
+  private formatContent(): string[] {
+    const content: string[] = [];
     for (const entry of this.entries) {
       const statusIcon = entry.success ? colorize('[OK]', Theme.success) : colorize('[FAIL]', Theme.error);
       const duration = entry.duration < 1000
         ? `${entry.duration}ms`
         : `${(entry.duration / 1000).toFixed(1)}s`;
       const toolLine = `${statusIcon} ${colorize(entry.name, Theme.primary)} ${colorize(duration, Theme.textMuted)}`;
-      this.box.appendLine(toolLine);
+      content.push(toolLine);
+    }
+    return content;
+  }
+
+  /** 渲染 */
+  render(engine: TUIEngine): void {
+    // 仅在数据变化时重建内容
+    if (this.isDirty) {
+      this.formattedContent = this.formatContent();
+      this.box.setContent(this.formattedContent);
+      this.isDirty = false;
     }
     this.box.render(engine);
   }
