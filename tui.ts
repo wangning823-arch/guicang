@@ -13,6 +13,7 @@ import { ToolsPanel } from './src/tui/panels/tools.js';
 import { LogsPanel } from './src/tui/panels/logs.js';
 import { HelpPanel } from './src/tui/panels/help.js';
 import { Theme, colorize } from './src/tui/theme.js';
+import { getStringWidth } from './src/tui/utils.js';
 
 import {
   Agent,
@@ -24,60 +25,6 @@ import {
 } from './src/index.js';
 
 import { setLogOutput, type LogLevel, type LogEntry } from './src/core/logger.js';
-
-/**
- * 获取字符的显示宽度
- */
-function getCharWidth(char: string): number {
-  const code = char.codePointAt(0);
-  if (!code) return 1;
-
-  // CJK统一汉字
-  if (
-    (code >= 0x4E00 && code <= 0x9FFF) ||
-    (code >= 0x3400 && code <= 0x4DBF) ||
-    (code >= 0x20000 && code <= 0x2A6DF) ||
-    (code >= 0xF900 && code <= 0xFAFF) ||
-    (code >= 0x2F800 && code <= 0x2FA1F)
-  ) {
-    return 2;
-  }
-
-  // 全角字符
-  if (
-    (code >= 0xFF01 && code <= 0xFF60) ||
-    (code >= 0xFFE0 && code <= 0xFFE6) ||
-    (code >= 0x3000 && code <= 0x303F) ||
-    (code >= 0xFE30 && code <= 0xFE4F)
-  ) {
-    return 2;
-  }
-
-  // Emoji和特殊符号
-  if (
-    (code >= 0x1F300 && code <= 0x1F9FF) ||
-    (code >= 0x2600 && code <= 0x27BF) ||
-    (code >= 0x1F600 && code <= 0x1F64F) ||
-    (code >= 0x1F680 && code <= 0x1F6FF) ||
-    (code >= 0x1F1E0 && code <= 0x1F1FF)
-  ) {
-    return 2;
-  }
-
-  return 1;
-}
-
-/**
- * 获取字符串的显示宽度
- */
-function getStringWidth(str: string): number {
-  let width = 0;
-  for (const char of str) {
-    if (char === '\x1b') continue;
-    width += getCharWidth(char);
-  }
-  return width;
-}
 
 async function main() {
   // 注册工具
@@ -286,6 +233,11 @@ async function main() {
   // 所有键盘输入始终发送到聊天面板
   engine.onPanelKey((event) => {
     chatPanel.handleKey(event);
+  });
+
+  // 监听终端窗口大小变化
+  process.stdout.on('resize', () => {
+    engine.handleResize();
   });
 
   engine.onKey('q', () => {

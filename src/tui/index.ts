@@ -8,6 +8,8 @@ export type { KeyEvent, RenderContext, Rect, Position } from './engine.js';
 
 export { Colors, Theme, colorize, bold, dim, withBg } from './theme.js';
 
+export { getCharWidth, getStringWidth, truncateString } from './utils.js';
+
 export { Box } from './components/box.js';
 export { ProgressBar, StatusIndicator, Sparkline } from './components/progress.js';
 
