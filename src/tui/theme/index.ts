@@ -4,10 +4,14 @@
  */
 
 import { darkTokens, lightTokens } from './tokens.js';
+import { monokaiTokens } from './monokai.js';
+import { nordTokens } from './nord.js';
+import { draculaTokens } from './dracula.js';
+import { solarizedTokens } from './solarized.js';
 import type { DesignTokens } from './tokens.js';
 
 /** 主题名称 */
-export type ThemeName = 'dark' | 'light';
+export type ThemeName = 'dark' | 'light' | 'monokai' | 'nord' | 'dracula' | 'solarized';
 
 /** 主题配置 */
 interface ThemeConfig {
@@ -25,6 +29,10 @@ export class ThemeManager {
     // 注册主题
     this.themes.set('dark', { name: 'dark', tokens: darkTokens });
     this.themes.set('light', { name: 'light', tokens: lightTokens });
+    this.themes.set('monokai', { name: 'monokai', tokens: monokaiTokens });
+    this.themes.set('nord', { name: 'nord', tokens: nordTokens });
+    this.themes.set('dracula', { name: 'dracula', tokens: draculaTokens });
+    this.themes.set('solarized', { name: 'solarized', tokens: solarizedTokens });
 
     this.currentTheme = initialTheme;
   }

@@ -194,11 +194,12 @@ export class AnimationManager {
   }
 
   /** 停止动画 */
-  stop(id: number): void {
-    if (this.animations.has(id)) {
-      this.animations.delete(id);
+  stop(id: number): boolean {
+    const existed = this.animations.delete(id);
+    if (existed) {
       this.stopIfNeeded();
     }
+    return existed;
   }
 
   /** 停止所有动画 */
