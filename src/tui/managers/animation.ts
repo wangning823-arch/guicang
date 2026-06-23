@@ -205,7 +205,7 @@ export class AnimationManager {
   /** 停止所有动画 */
   stopAll(): void {
     this.animations.clear();
-    this.stop();
+    this.stopIfNeeded();
   }
 
   /** 完成动画 */
@@ -274,7 +274,7 @@ export class AnimationManager {
   setFrameRate(fps: number): void {
     this.frameRate = fps;
     if (this.isRunning) {
-      this.stop();
+      this.stopLoop();
       this.startIfNeeded();
     }
   }
@@ -290,7 +290,7 @@ export class AnimationManager {
   }
 
   /** 停止动画循环 */
-  private stop(): void {
+  private stopLoop(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
