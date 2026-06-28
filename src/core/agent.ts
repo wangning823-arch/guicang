@@ -96,6 +96,14 @@ export class Agent {
         // 调用 LLM
         this.status = 'thinking';
         this.logger.debug(`Sending ${messages.length} messages to LLM`);
+
+        // 通知前端进度
+        if (this.options.streamCallback && iterations > 1) {
+          this.options.streamCallback({
+            type: 'text_delta',
+            delta: `\n⏳ 思考中 (第${iterations}轮)...\n`,
+          });
+        }
         const response: LLMResponse = await this.provider.chat(
           messages,
           toolDefs.length > 0 ? toolDefs : undefined,
@@ -125,7 +133,7 @@ export class Agent {
             this.logger.info('Response truncated (max_tokens), continuing...');
             messages.push({
               role: 'user',
-              content: '请继续，从上次中断的地方接着输出。不要重复已有内容。',
+              content: '你的输出被截断了。请从上次中断的地方直接继续输出剩余内容，不要重复已经输出的部分，不要加任何前缀说明。',
             });
             this.status = 'observing';
             continue; // 回到循环顶部继续生成
@@ -171,12 +179,50 @@ export class Agent {
           streamHandler.finish();
         }
 
+        // 通知前端正在执行工具
+        if (this.options.streamCallback) {
+          const toolNames = response.toolCalls.map((tc) => tc.name).join(', ');
+          this.options.streamCallback({
+            type: 'text_delta',
+            delta: `\n\n🔧 正在执行工具: ${toolNames}...\n`,
+          });
+        }
+
         messages.push(response.message);
 
-        this.logger.info(`Executing ${response.toolCalls.length} tool(s) in parallel`);
+        // 检测输出是否被 max_tokens 截断（即使有工具调用）
+        // 当模型生成大型文件内容时，tool_use 的 input 可能被截断
+        const isTruncatedWithTools = response.stopReason === 'max_tokens' && response.toolCalls.length > 0;
+
+        // 额外检查：验证工具调用参数是否完整（防止部分截断的 tool_use 被执行）
+        const hasIncompleteToolCalls = response.toolCalls.some((tc) => {
+          const argsStr = JSON.stringify(tc.arguments);
+          // 检查参数是否异常短（可能是截断的）或明显不完整
+          if (tc.name === 'file_write') {
+            const content = tc.arguments.content as string;
+            if (typeof content === 'string' && content.length === 0) return true;
+          }
+          return false;
+        });
+
+        const shouldSkipTools = isTruncatedWithTools || hasIncompleteToolCalls;
+
+        if (shouldSkipTools) {
+          this.logger.warn(`Output may be truncated (stopReason=${response.stopReason}, incompleteArgs=${hasIncompleteToolCalls}) — skipping ${response.toolCalls.length} tool call(s)`);
+        }
 
         const results = await Promise.all(
           response.toolCalls.map((toolCall) => {
+            if (shouldSkipTools) {
+              // 截断时跳过执行，返回错误提示
+              this.logger.info(`Skipping truncated tool call: ${toolCall.name}`);
+              return Promise.resolve({
+                toolCallId: toolCall.id,
+                success: false,
+                content: '',
+                error: 'Output was truncated by token limit. Content was incomplete.',
+              });
+            }
             this.logger.info(`Executing tool: ${toolCall.name}`, { args: toolCall.arguments });
             return executeTool(
               toolCall.name,
@@ -214,8 +260,30 @@ export class Agent {
           });
         }
 
+        // 如果工具调用被截断，告诉模型继续生成完整内容
+        if (shouldSkipTools) {
+          this.logger.info('Adding continuation prompt for truncated output');
+          messages.push({
+            role: 'user',
+            content: '你的输出被 token 限制截断了，工具调用的内容不完整，已跳过执行。请重新生成完整的工具调用。如果内容太长无法一次输出，请将内容分成多个较小的部分，分别调用 file_write（使用 append 模式）来完成。',
+          });
+        }
+
         this.status = 'observing';
         this.logger.debug(`After tool execution: ${messages.length} messages in context`);
+
+        // 通知前端工具执行完成
+        if (this.options.streamCallback) {
+          const successCount = results.filter((r) => r.success).length;
+          const failCount = results.length - successCount;
+          const summary = failCount > 0
+            ? `✅ ${successCount} 成功, ❌ ${failCount} 失败`
+            : `✅ ${successCount} 个工具执行成功`;
+          this.options.streamCallback({
+            type: 'text_delta',
+            delta: `\n${summary}\n`,
+          });
+        }
       }
 
       // 达到最大迭代次数

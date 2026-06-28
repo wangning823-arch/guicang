@@ -54,6 +54,8 @@ export class WebServer {
   private host: string;
   private staticDir: string;
   private workflows = new Map<string, WorkflowDefinition>();
+  /** 每个 WebSocket 连接的对话历史 */
+  private clientHistories = new Map<WebSocket, import('../core/types.js').Message[]>();
 
   constructor(options: WebServerOptions = {}) {
     this.port = options.port ?? 3000;
@@ -214,6 +216,7 @@ export class WebServer {
 
     ws.on('close', () => {
       this.clients.delete(ws);
+      this.clientHistories.delete(ws);
       logger.info('WebSocket client disconnected', { total: this.clients.size });
     });
   }
@@ -242,7 +245,31 @@ export class WebServer {
           timestamp: new Date(),
         };
 
-        const result = await this.agent.run(channelMessage.content);
+        // 获取或初始化该连接的对话历史
+        let history = this.clientHistories.get(ws) ?? [];
+
+        // 临时设置 streamCallback 用于实时推送文本增量
+        const originalOptions = (this.agent as any).options;
+        const prevCallback = originalOptions.streamCallback;
+        originalOptions.streamCallback = (event: { type: string; delta?: string }) => {
+          if (event.type === 'text_delta' && event.delta) {
+            try {
+              ws.send(JSON.stringify({ type: 'delta', content: event.delta }));
+            } catch { /* ignore send errors */ }
+          }
+        };
+
+        let result;
+        try {
+          result = await this.agent.runWithHistory(history, channelMessage.content);
+        } finally {
+          originalOptions.streamCallback = prevCallback;
+        }
+
+        // 更新对话历史
+        if (result.messages.length > 0) {
+          this.clientHistories.set(ws, result.messages);
+        }
 
         const lastAssistant = result.messages
           .filter((m) => m.role === 'assistant')

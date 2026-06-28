@@ -143,6 +143,21 @@
 
     let ws = null;
     let reconnectTimeout = null;
+    let isProcessing = false;
+
+    function setProcessing(processing) {
+      isProcessing = processing;
+      sendBtn.disabled = processing;
+      input.disabled = processing;
+      if (processing) {
+        sendBtn.textContent = '⏳';
+        typing.classList.add('show');
+      } else {
+        sendBtn.textContent = 'Send';
+        typing.classList.remove('show');
+        input.focus();
+      }
+    }
 
     function connect() {
       const port = window.location.port || '8081';
@@ -157,11 +172,13 @@
       ws.onclose = () => {
         statusDot.classList.remove('connected');
         statusText.textContent = 'Disconnected';
+        setProcessing(false);
         reconnectTimeout = setTimeout(connect, 3000);
       };
 
       ws.onerror = () => {
         statusText.textContent = 'Error';
+        setProcessing(false);
       };
 
       ws.onmessage = (event) => {
@@ -170,15 +187,57 @@
         if (msg.type === 'welcome') {
           addMessage('system', msg.message);
         } else if (msg.type === 'processing') {
-          typing.classList.add('show');
+          setProcessing(true);
+        } else if (msg.type === 'delta') {
+          // 流式文本增量 - 追加到当前助手消息
+          appendToLastAssistant(msg.content);
         } else if (msg.type === 'response') {
-          typing.classList.remove('show');
-          addMessage('assistant', msg.content, msg.toolCalls > 0 ? `Used ${msg.toolCalls} tool(s)` : null);
+          setProcessing(false);
+          // 最终响应：如果已有流式内容，只追加工具信息；否则显示完整内容
+          if (lastAssistantDiv) {
+            if (msg.toolCalls > 0) {
+              const info = document.createElement('div');
+              info.className = 'tool-info';
+              info.textContent = `Used ${msg.toolCalls} tool(s)`;
+              lastAssistantDiv.appendChild(info);
+            }
+            lastAssistantDiv = null;
+          } else if (msg.content) {
+            addMessage('assistant', msg.content, msg.toolCalls > 0 ? `Used ${msg.toolCalls} tool(s)` : null);
+          }
         } else if (msg.type === 'error') {
-          typing.classList.remove('show');
+          setProcessing(false);
           addMessage('system', `Error: ${msg.message}`);
         }
       };
+    }
+
+    let lastAssistantDiv = null;
+
+    function appendToLastAssistant(text) {
+      if (!lastAssistantDiv) {
+        lastAssistantDiv = document.createElement('div');
+        lastAssistantDiv.className = 'message assistant';
+        chat.insertBefore(lastAssistantDiv, typing);
+      }
+      lastAssistantDiv.textContent += text;
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function updateLastAssistant(content, toolInfo) {
+      if (lastAssistantDiv) {
+        lastAssistantDiv.textContent = content;
+        if (toolInfo) {
+          const info = document.createElement('div');
+          info.className = 'tool-info';
+          info.textContent = toolInfo;
+          lastAssistantDiv.appendChild(info);
+        }
+        lastAssistantDiv = null;
+      } else {
+        addMessage('assistant', content, toolInfo);
+      }
+      chat.scrollTop = chat.scrollHeight;
     }
 
     function addMessage(role, content, toolInfo = null) {
@@ -199,12 +258,14 @@
 
     function sendMessage() {
       const text = input.value.trim();
-      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!text || !ws || ws.readyState !== WebSocket.OPEN || isProcessing) return;
 
       addMessage('user', text);
+      lastAssistantDiv = null;
       ws.send(JSON.stringify({ type: 'chat', message: text }));
       input.value = '';
       input.style.height = 'auto';
+      setProcessing(true);
     }
 
     sendBtn.addEventListener('click', sendMessage);

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赤壁之战 - 3D交互演示</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="container">
+        <canvas id="battleCanvas"></canvas>
+        
+        <!-- 控制面板 -->
+        <div id="controlPanel">
+            <h1>赤壁之战</h1>
+            <p class="subtitle">公元208年</p>
+            
+            <div class="timeline">
+                <div class="timeline-label">时间轴</div>
+                <input type="range" id="timeSlider" min="0" max="100" value="0">
+                <div class="time-display">
+                    <span id="currentTime">准备阶段</span>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="playBtn">▶ 播放</button>
+                <button id="pauseBtn">⏸ 暂停</button>
+                <button id="resetBtn">↺ 重置</button>
+            </div>
+            
+            <div class="view-controls">
+                <h3>视角</h3>
+                <button class="view-btn" data-view="overview">全景俯瞰</button>
+                <button class="view-btn" data-view="caocao">曹军视角</button>
+                <button class="view-btn" data-view="sunliu">联军视角</button>
+                <button class="view-btn" data-view="fire">火攻焦点</button>
+            </div>
+            
+            <div class="info-panel">
+                <h3>战况解说</h3>
+                <p id="narration">赤壁之战是中国历史上著名的以少胜多的战役之一。公元208年，曹操率八十万大军南下，意图一统天下。</p>
+            </div>
+            
+            <div class="legend">
+                <h3>图例</h3>
+                <div class="legend-item">
+                    <span class="color-box" style="background: #e74c3c;"></span>
+                    <span>曹军</span>
+                </div>
+                <div class="legend-item">
+                    <span class="color-box" style="background: #3498db;"></span>
+                    <span>孙刘联军</span>
+                </div>
+                <div class="legend-item">
+                    <span class="color-box" style="background: #f39c12;"></span>
+                    <span>火船</span>
+                </div>
+                <div class="legend-item">
+                    <span class="color-box" style="background: #9b59b6;"></span>
+                    <span>风向</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 风向指示器 -->
+        <div id="windIndicator">
+            <div class="wind-arrow">↗</div>
+            <div class="wind-text">东南风</div>
+        </div>
+        
+        <!-- 状态指示 -->
+        <div id="statusIndicator">
+            <span id="statusText">准备就绪</span>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
