@@ -3,7 +3,7 @@
  * 基于内存的有界存储，FIFO 淘汰
  */
 
-import { type MemoryStore, type MemoryEntry, type MemoryQueryOptions, generateId } from './base.js';
+import { type MemoryStore, type MemoryEntry, type MemoryQueryOptions, generateId, calculateDecayScore } from './base.js';
 
 export class ShortTermMemory implements MemoryStore {
   readonly type = 'short-term';
@@ -23,6 +23,7 @@ export class ShortTermMemory implements MemoryStore {
       createdAt: new Date(),
       lastAccessedAt: new Date(),
       accessCount: 0,
+      importance: entry.importance ?? 0.5,
     };
 
     this.entries.push(newEntry);
@@ -63,6 +64,13 @@ export class ShortTermMemory implements MemoryStore {
         break;
       case 'frequency':
         results.sort((a, b) => b.accessCount - a.accessCount);
+        break;
+      case 'relevance':
+        // 衰减排序：importance × exp(-λ × daysSinceAccess)
+        {
+          const decayRate = options.decayRate ?? 0.01;
+          results.sort((a, b) => calculateDecayScore(b, decayRate) - calculateDecayScore(a, decayRate));
+        }
         break;
       default:
         // 默认按创建时间倒序

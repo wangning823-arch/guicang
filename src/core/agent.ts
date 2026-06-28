@@ -8,6 +8,9 @@ import type { BaseProvider, ProviderOptions } from '../provider/base.js';
 import type { ToolContext } from '../tool/base.js';
 import { executeTool, getAllToolDefinitions } from '../tool/registry.js';
 import { Logger } from './logger.js';
+import { ContextCompressor, type CompressorOptions } from './compressor.js';
+import { SelfReflection, type ReflectionOptions } from './reflection.js';
+import { StreamHandler, type StreamCallback } from './stream.js';
 
 export interface AgentOptions {
   /** 最大循环次数（防止无限循环） */
@@ -20,11 +23,17 @@ export interface AgentOptions {
   toolContext?: Partial<ToolContext>;
   /** Provider 选项 */
   providerOptions?: ProviderOptions;
+  /** 上下文压缩选项（不设置则禁用压缩） */
+  compressor?: CompressorOptions;
+  /** 自我反思选项（不设置则禁用反思） */
+  reflection?: ReflectionOptions;
+  /** 流式输出回调（实时接收文本增量） */
+  streamCallback?: StreamCallback;
 }
 
-const DEFAULT_OPTIONS: Required<AgentOptions> = {
-  maxIterations: 10,
-  iterationTimeout: 60_000,
+const DEFAULT_OPTIONS = {
+  maxIterations: 30,
+  iterationTimeout: 120_000,
   systemPrompt: 'You are a helpful AI assistant. Use tools when needed to help the user.',
   toolContext: {},
   providerOptions: {},
@@ -40,12 +49,20 @@ function getSafeEnv(): Record<string, string> {
 export class Agent {
   private logger = new Logger('agent');
   private status: AgentStatus = 'idle';
+  private compressor: ContextCompressor | null;
+  private reflection: SelfReflection | null;
 
   constructor(
     private provider: BaseProvider,
     private options: AgentOptions = {},
   ) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.compressor = this.options.compressor
+      ? new ContextCompressor(this.options.compressor)
+      : null;
+    this.reflection = this.options.reflection
+      ? new SelfReflection(this.options.reflection)
+      : null;
   }
 
   /** 获取当前状态 */
@@ -70,8 +87,15 @@ export class Agent {
         iterations++;
         this.logger.debug(`Iteration ${iterations}/${this.options.maxIterations}`);
 
+        // 上下文压缩（如果启用且消息过长）
+        if (this.compressor && this.compressor.shouldCompress(messages)) {
+          this.logger.info('Compressing conversation context...');
+          messages = await this.compressor.compress(messages, this.provider);
+        }
+
         // 调用 LLM
         this.status = 'thinking';
+        this.logger.debug(`Sending ${messages.length} messages to LLM`);
         const response: LLMResponse = await this.provider.chat(
           messages,
           toolDefs.length > 0 ? toolDefs : undefined,
@@ -87,7 +111,47 @@ export class Agent {
 
         // 如果没有工具调用，返回最终结果
         if (!response.toolCalls || response.toolCalls.length === 0) {
+          // 流式输出文本增量
+          if (this.options.streamCallback && response.message.content) {
+            const streamHandler = new StreamHandler(this.options.streamCallback);
+            streamHandler.handleTextDelta(response.message.content);
+            streamHandler.finish();
+          }
+
           messages.push(response.message);
+
+          // 检测是否因 max_tokens 截断，自动续写
+          if (response.stopReason === 'max_tokens' && response.message.content) {
+            this.logger.info('Response truncated (max_tokens), continuing...');
+            messages.push({
+              role: 'user',
+              content: '请继续，从上次中断的地方接着输出。不要重复已有内容。',
+            });
+            this.status = 'observing';
+            continue; // 回到循环顶部继续生成
+          }
+
+          // 自我反思（如果启用）
+          if (this.reflection) {
+            this.logger.info('Running self-reflection on final output...');
+            const context = messages.map((m) => `${m.role}: ${m.content}`).join('\n');
+            const reflection = await this.reflection.evaluate(
+              response.message.content,
+              context,
+              this.provider,
+            );
+
+            this.logger.info(`Reflection score: ${reflection.score}/100`);
+
+            if (reflection.revisedContent) {
+              // 使用修正后的输出
+              messages[messages.length - 1] = {
+                role: 'assistant',
+                content: reflection.revisedContent,
+              };
+            }
+          }
+
           this.status = 'done';
           return {
             status: 'done',
@@ -97,26 +161,50 @@ export class Agent {
           };
         }
 
-        // 有工具调用，执行工具
+        // 有工具调用，并行执行所有工具
         this.status = 'acting';
+
+        // 流式输出文本部分（如果有）
+        if (this.options.streamCallback && response.message.content) {
+          const streamHandler = new StreamHandler(this.options.streamCallback);
+          streamHandler.handleTextDelta(response.message.content);
+          streamHandler.finish();
+        }
+
         messages.push(response.message);
 
-        for (const toolCall of response.toolCalls) {
-          this.logger.info(`Executing tool: ${toolCall.name}`, { args: toolCall.arguments });
+        this.logger.info(`Executing ${response.toolCalls.length} tool(s) in parallel`);
 
-          const result = await executeTool(
-            toolCall.name,
-            toolCall.arguments,
-            toolCall.id,
-            toolContext,
-          );
+        const results = await Promise.all(
+          response.toolCalls.map((toolCall) => {
+            this.logger.info(`Executing tool: ${toolCall.name}`, { args: toolCall.arguments });
+            return executeTool(
+              toolCall.name,
+              toolCall.arguments,
+              toolCall.id,
+              toolContext,
+            );
+          }),
+        );
 
+        // 按顺序将结果添加到消息和记录中
+        for (let i = 0; i < response.toolCalls.length; i++) {
+          const toolCall = response.toolCalls[i];
+          const result = results[i];
           allToolCalls.push({ ...toolCall, result });
 
-          // 将工具结果添加到消息
+          // 截断过大的工具结果，防止撑爆 LLM 上下文
+          // 完整结果保留在 allToolCalls 中供调用者使用
+          const MAX_TOOL_CONTENT = 2000;
+          let toolContent = result.success ? result.content : `Error: ${result.error}`;
+          if (toolContent.length > MAX_TOOL_CONTENT) {
+            toolContent = toolContent.slice(0, MAX_TOOL_CONTENT) +
+              `\n... [truncated, ${result.content.length} chars total]`;
+          }
+
           messages.push({
             role: 'tool',
-            content: result.success ? result.content : `Error: ${result.error}`,
+            content: toolContent,
             toolCallId: toolCall.id,
           });
 
@@ -127,6 +215,7 @@ export class Agent {
         }
 
         this.status = 'observing';
+        this.logger.debug(`After tool execution: ${messages.length} messages in context`);
       }
 
       // 达到最大迭代次数

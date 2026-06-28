@@ -21,6 +21,8 @@ export interface MemoryEntry {
   lastAccessedAt: Date;
   /** 访问次数 */
   accessCount: number;
+  /** 重要性（0-1，默认 0.5） */
+  importance: number;
 }
 
 /** 记忆查询选项 */
@@ -33,8 +35,10 @@ export interface MemoryQueryOptions {
   since?: Date;
   /** 时间范围：结束 */
   until?: Date;
-  /** 按相关性排序 */
+  /** 按相关性排序（衰减排序） */
   sortBy?: 'relevance' | 'recency' | 'frequency';
+  /** 衰减速率（默认 0.01，半衰期约 70 天） */
+  decayRate?: number;
 }
 
 /**
@@ -69,4 +73,16 @@ export interface MemoryStore {
 /** 生成唯一 ID */
 export function generateId(): string {
   return `mem_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/**
+ * 计算记忆衰减分数
+ * 基于指数衰减：score = importance * exp(-λ * daysSinceAccess)
+ * importance 越高、lastAccessedAt 越近 → 分数越高
+ */
+export function calculateDecayScore(entry: MemoryEntry, decayRate = 0.01): number {
+  const now = Date.now();
+  const daysSinceAccess = (now - entry.lastAccessedAt.getTime()) / (1000 * 60 * 60 * 24);
+  const importance = entry.importance ?? 0.5;
+  return importance * Math.exp(-decayRate * daysSinceAccess);
 }

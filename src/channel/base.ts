@@ -4,7 +4,8 @@
  */
 
 import type { Agent } from '../core/agent.js';
-import type { AgentResult } from '../core/types.js';
+import type { AgentResult, Message } from '../core/types.js';
+import { Logger } from '../core/logger.js';
 
 /** 消息格式 */
 export interface ChannelMessage {
@@ -41,6 +42,11 @@ export interface ChannelOptions {
 export abstract class BaseChannel {
   protected agent: Agent | null = null;
   protected running = false;
+  /** 对话历史（跨轮次保持） */
+  protected conversationHistory: Message[] = [];
+  /** 最大历史消息数（防止无限增长） */
+  protected maxHistoryLength = 50;
+  private logger = new Logger('channel');
 
   constructor(protected options: ChannelOptions) {}
 
@@ -67,7 +73,37 @@ export abstract class BaseChannel {
       throw new Error('No agent configured for this channel');
     }
 
-    return await this.agent.run(message.content);
+    this.logger.debug(`Handling message, history has ${this.conversationHistory.length} messages`);
+
+    // 使用 runWithHistory 保持上下文连贯
+    const result = await this.agent.runWithHistory(
+      this.conversationHistory,
+      message.content,
+    );
+
+    // 更新对话历史：保留本次交互的所有消息
+    if (result.messages.length > 0) {
+      this.conversationHistory = result.messages;
+      this.logger.debug(`Updated history: ${this.conversationHistory.length} messages`);
+
+      // 截断过长的历史（保留系统消息 + 最近的对话）
+      if (this.conversationHistory.length > this.maxHistoryLength) {
+        const systemMsg = this.conversationHistory.find((m) => m.role === 'system');
+        const recentMessages = this.conversationHistory.slice(
+          this.conversationHistory.length - this.maxHistoryLength + (systemMsg ? 1 : 0),
+        );
+        this.conversationHistory = systemMsg
+          ? [systemMsg, ...recentMessages]
+          : recentMessages;
+      }
+    }
+
+    return result;
+  }
+
+  /** 清空对话历史 */
+  clearHistory(): void {
+    this.conversationHistory = [];
   }
 
   /** 生成消息 ID */

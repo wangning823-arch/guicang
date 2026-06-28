@@ -65,13 +65,8 @@ export class AnthropicProvider extends BaseProvider {
 
     const body: Record<string, unknown> = {
       model: this.config.model,
-      max_tokens: options?.maxTokens ?? 4096,
-      messages: nonSystemMsgs.map((m) => ({
-        role: m.role === 'tool' ? 'user' : m.role,
-        content: m.role === 'tool'
-          ? [{ type: 'tool_result', tool_use_id: m.toolCallId, content: m.content }]
-          : m.content,
-      })),
+      max_tokens: options?.maxTokens ?? 32768,
+      messages: this.buildMessages(nonSystemMsgs),
     };
 
     if (systemMsg) {
@@ -155,6 +150,66 @@ export class AnthropicProvider extends BaseProvider {
     }
   }
 
+  /**
+   * 构建 Anthropic API 消息格式
+   * 关键：
+   * 1. 同一轮的多个 tool_results 必须合并到一个 user 消息中
+   * 2. assistant 消息必须包含完整的 content blocks（text + tool_use）
+   */
+  private buildMessages(messages: Message[]): Array<{ role: string; content: unknown }> {
+    const result: Array<{ role: string; content: unknown }> = [];
+
+    for (const msg of messages) {
+      if (msg.role === 'tool') {
+        // Tool 消息：合并连续的 tool results 到一个 user 消息
+        const toolResult = {
+          type: 'tool_result' as const,
+          tool_use_id: msg.toolCallId ?? '',
+          content: msg.content,
+        };
+
+        const lastMsg = result[result.length - 1];
+        if (lastMsg && lastMsg.role === 'user' && Array.isArray(lastMsg.content)) {
+          lastMsg.content.push(toolResult);
+        } else {
+          result.push({
+            role: 'user',
+            content: [toolResult],
+          });
+        }
+      } else if (msg.role === 'assistant') {
+        // Assistant 消息：检查是否包含 content blocks（JSON 格式）
+        const parsed = this.tryParseContentBlocks(msg.content);
+        if (parsed) {
+          // 有 content blocks（包含 tool_use），原样传递
+          result.push({ role: 'assistant', content: parsed });
+        } else {
+          // 纯文本，直接传递
+          result.push({ role: 'assistant', content: msg.content });
+        }
+      } else {
+        result.push({ role: msg.role, content: msg.content });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * 尝试解析 content blocks JSON
+   */
+  private tryParseContentBlocks(content: string): Array<Record<string, unknown>> | null {
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.type) {
+        return parsed;
+      }
+    } catch {
+      // 不是 JSON，是纯文本
+    }
+    return null;
+  }
+
   private parseResponse(data: AnthropicResponse): LLMResponse {
     const textContent = data.content
       .filter((c) => c.type === 'text')
@@ -177,10 +232,22 @@ export class AnthropicProvider extends BaseProvider {
         };
       });
 
+    // 保留完整的 content blocks（包含 text + tool_use）
+    // 这样后续 API 调用能正确匹配 tool_results
+    const contentBlocks = data.content.map((c) => {
+      if (c.type === 'text') {
+        return { type: 'text' as const, text: (c as { type: 'text'; text: string }).text };
+      }
+      const tc = c as { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
+      return { type: 'tool_use' as const, id: tc.id, name: tc.name, input: tc.input };
+    });
+
     return {
       message: {
         role: 'assistant',
-        content: textContent,
+        content: contentBlocks.length === 1 && contentBlocks[0].type === 'text'
+          ? textContent
+          : JSON.stringify(contentBlocks),
       },
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       usage: data.usage
@@ -190,6 +257,7 @@ export class AnthropicProvider extends BaseProvider {
             totalTokens: data.usage.input_tokens + data.usage.output_tokens,
           }
         : undefined,
+      stopReason: data.stop_reason ?? undefined,
     };
   }
 }

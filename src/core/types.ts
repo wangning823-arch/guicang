@@ -58,6 +58,8 @@ export interface LLMResponse {
     completionTokens: number;
     totalTokens: number;
   };
+  /** 停止原因：'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use' */
+  stopReason?: string;
 }
 
 /** Agent 运行状态 */

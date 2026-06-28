@@ -5,6 +5,7 @@
 
 import type { ToolDefinition, ToolResult } from '../core/types.js';
 import { BaseTool, type ToolContext } from './base.js';
+import { executeWithRecovery, type RetryOptions, type FallbackConfig } from './retry.js';
 
 /** 工具注册表 */
 const toolRegistry = new Map<string, BaseTool>();
@@ -87,6 +88,40 @@ export async function executeTool(
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+/**
+ * 内部执行函数（用于 retry 模块）
+ */
+async function internalExecuteTool(
+  name: string,
+  args: Record<string, unknown>,
+  toolCallId: string,
+  context: ToolContext,
+): Promise<ToolResult> {
+  return executeTool(name, args, toolCallId, context);
+}
+
+/**
+ * 带重试和 fallback 的工具调用
+ */
+export async function executeToolWithRecovery(
+  name: string,
+  args: Record<string, unknown>,
+  toolCallId: string,
+  context: ToolContext,
+  retryOptions?: RetryOptions,
+  fallback?: FallbackConfig,
+): Promise<ToolResult> {
+  return executeWithRecovery(
+    name,
+    args,
+    toolCallId,
+    context,
+    internalExecuteTool,
+    retryOptions,
+    fallback,
+  );
 }
 
 /**

@@ -13,3 +13,9 @@ export {
   type BatchOptions,
   type BatchResult,
 } from './batch.js';
+
+export {
+  SemanticCache,
+  semanticCache,
+  type SemanticCacheOptions,
+} from './semantic-cache.js';
