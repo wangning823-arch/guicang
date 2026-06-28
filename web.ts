@@ -50,7 +50,7 @@ async function main() {
 
   // 3. 创建 Agent
   const agent = new Agent(provider, {
-    maxIterations: 10,
+    maxIterations: 50,
     systemPrompt: `你是归藏 (Guicang)，一个强大的 AI 助手。
 万物归藏，一念即达。
 
