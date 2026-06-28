@@ -15,6 +15,8 @@
     "typecheck": "tsc --noEmit",
     "dev": "npx tsx src/index.ts",
     "tui": "npx tsx tui.ts",
+    "web": "npx tsx web.ts",
+    "web:api": "ENABLE_API=true npx tsx web.ts",
     "check": "npm run typecheck && npm run lint && npm test"
   },
   "keywords": [
