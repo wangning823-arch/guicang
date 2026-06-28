@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤壁之战 · 3D俯瞰演示</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Microsoft YaHei','SimHei',sans-serif}
+canvas#main{display:block;width:100vw;height:100vh}
+#title{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:100;text-align:center;pointer-events:none}
+#title h1{font-size:42px;color:#fff;text-shadow:0 0 30px rgba(255,100,0,.8),0 0 60px rgba(255,50,0,.5);letter-spacing:14px;animation:glow 3s ease-in-out infinite}
+@keyframes glow{0%,100%{text-shadow:0 0 30px rgba(255,100,0,.8)}50%{text-shadow:0 0 50px rgba(255,150,0,1),0 0 100px rgba(255,80,0,.8)}}
+#sub{font-size:14px;color:#bbb;margin-top:5px;letter-spacing:3px}
+#info{position:fixed;top:50%;left:18px;transform:translateY(-50%);z-index:100;background:rgba(0,0,0,.82);border:1px solid rgba(255,150,50,.35);border-radius:10px;padding:14px 18px;color:#ddd;font-size:13px;line-height:1.9;min-width:200px;max-width:260px;pointer-events:none}
+#info h3{color:#ff9933;font-size:15px;margin-bottom:5px;border-bottom:1px solid rgba(255,150,50,.3);padding-bottom:4px}
+.tc{color:#ff6633}.ts{color:#44aaff}.tf{color:#ff3300}.tw{color:#00cc88}
+#ctrl{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:100;background:rgba(0,0,0,.85);border:2px solid rgba(255,150,50,.5);border-radius:12px;padding:12px 20px;display:flex;align-items:center;gap:12px}
+#ctrl button{background:linear-gradient(135deg,#cc5500,#ff9933);border:none;color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:bold;transition:all .2s}
+#ctrl button:hover{transform:scale(1.06);box-shadow:0 0 15px rgba(255,150,0,.5)}
+.on{background:linear-gradient(135deg,#ff2200,#ff6600)!important}
+#pbar{width:240px;height:5px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden}
+#pfill{height:100%;background:linear-gradient(90deg,#ff6600,#ffaa00);width:0%;transition:width .3s}
+#plbl{color:#ffcc66;font-size:13px;min-width:120px;text-align:center}
+#wind{position:fixed;top:14px;right:18px;z-index:100;text-align:center;pointer-events:none}
+#wind canvas{border:2px solid rgba(255,150,50,.3);border-radius:50%;background:rgba(0,0,0,.5)}
+#wlbl{color:#00cc88;font-size:12px;margin-top:4px;letter-spacing:2px}
+#legend{position:fixed;bottom:80px;right:18px;z-index:100;pointer-events:none;color:#aaa;font-size:11px;line-height:2;background:rgba(0,0,0,.6);border:1px solid rgba(255,150,50,.2);border-radius:8px;padding:8px 12px}
+</style>
+</head>
+<body>
+<div id="title">
+  <h1>赤 壁 之 战</h1>
+  <div id="sub">建安十三年 · 孙刘联军大破曹操</div>
+</div>
+<div id="info">
+  <h3 id="ititle">战役概览</h3>
+  <div id="icontent"></div>
+</div>
+<div id="wind">
+  <canvas id="wcv" width="90" height="90"></canvas>
+  <div id="wlbl">风向：西北风</div>
+</div>
+<div id="legend">
+  <span class="tc">■ 曹操军</span>&nbsp;&nbsp;
+  <span class="ts">■ 孙刘联军</span><br>
+  <span class="tf">■ 火攻</span>&nbsp;&nbsp;
+  <span class="tw">■ 风向</span>
+</div>
+<div id="ctrl">
+  <button id="bplay" class="on">▶ 播放</button>
+  <button id="bpause">⏸ 暂停</button>
+  <button id="breset">⟳ 重置</button>
+  <div id="pbar"><div id="pfill"></div></div>
+  <div id="plbl">第一幕：两军对峙</div>
+</div>
+<canvas id="main"></canvas>
+<script>
+// ===================== 基础 =====================
+const C=document.getElementById('main'),X=C.getContext('2d');
+let W,H;
+function resize(){W=C.width=innerWidth;H=C.height=innerHeight}
+resize();addEventListener('resize',resize);
+
+// ===================== 3D投影 =====================
+const cam={x:0,y:-320,z:520,rx:.62,rz:0,tx:0,ty:-320,tz:520,trx:.62,trz:0};
+function rotX(p,a){const c=Math.cos(a),s=Math.sin(a);return{x:p.x,y:p.y*c-p.z*s,z:p.y*s+p.z*c}}
+function rotZ(p,a){const c=Math.cos(a),s=Math.sin(a);return{x:p.x*c-p.y*s,y:p.x*s+p.y*c,z:p.z}}
+function proj(p){
+  let r={x:p.x-cam.x,y:p.y-cam.y,z:p.z-cam.z};
+  r=rotX(r,-cam.rx);r=rotZ(r,-cam.rz);
+  const d=800,sc=d/(d+r.y);
+  return{x:W/2+r.x*sc,y:H/2-r.z*sc,s:sc,d:r.y};
+}
+
+// ===================== 地形 =====================
+const river=[],nBank=[],sBank=[];
+function initTerrain(){
+  river.length=0;nBank.length=0;sBank.length=0;
+  for(let i=-900;i<=900;i+=30) river.push({x:i,y:-15+Math.sin(i*.004)*12,z:0});
+  for(let i=-900;i<=900;i+=40) nBank.push({x:i,y:-90-Math.random()*25,z:5+Math.random()*10});
+  for(let i=-900;i<=900;i<=900;i+=40) sBank.push({x:i,y:50+Math.random()*20,z:6+Math.random()*12});
+}
+
+// ===================== 战船 =====================
+let caoShips=[],sunShips=[],fireShips=[];
+function initShips(){
+  caoShips.length=0;sunShips.length=0;fireShips.length=0;
+  // 曹操连环船阵 - 两排各8艘,铁索相连
+  for(let r=0;r<2;r++) for(let i=0;i<8;i++){
+    caoShips.push({x:-140+i*42,y:-55+r*30,w:36,h:14,burn:false,bt:0});
+  }
+  // 孙刘联军 - 南岸散开
+  for(let i=0;i<6;i++){
+    sunShips.push({x:-100+i*45,y:65+Math.sin(i)*10,w:28,h:10});
+  }
+}
+
+// ===================== 粒子系统 =====================
+let fires=[],smokes=[],windP=[];
+function addFire(x,y,n){for(let i=0;i<n;i++) fires.push({x:x+Math.random()*20-10,y:y+Math.random()*10-5,vx:(Math.random()-.5)*2,vy:Math.random()*1.5+1,life:1,dec:.008+Math.random()*.012,sz:3+Math.random()*5})}
+function addSmoke(x,y,n){for(let i=0;i<n;i++) smokes.push({x:x+Math.random()*30-15,y:y+Math.random()*10-5,vx:(Math.random()-.5)*1.5,vy:-Math.random()*2-1,life:1,dec:.005+Math.random()*.008,sz:5+Math.random()*8})}
+function initWind(){
+  windP.length=0;
+  for(let i=0;i<80;i++) windP.push({x:Math.random()*1800-900,y:Math.random()*300-150,z:Math.random()*50,lx:0,ly:0});
+}
+
+// ===================== 风向 =====================
+let windAngle=-Math.PI*.3; // 初始西北风
+let windTarget=-Math.PI*.3;
+let windMag=0.3;
+const windLabels=['西北风','北风渐弱','风向转变','东南风起','东南劲风','东南风'];
+function updateWind(t){
+  const phases=[
+    {t:0,a:-.3,m:.3},{t:.15,a:-.3,m:.3},{t:.3,a:0,m:.2},
+    {t:.45,a:Math.PI*.6,m:.7},{t:.6,a:Math.PI*.65,m:1},{t:.8,a:Math.PI*.6,m:.9}
+  ];
+  for(let i=phases.length-1;i>=0;i--){
+    if(t>=phases[i].t){windTarget=phases[i].a;windMag=phases[i].m;break;}
+  }
+  windAngle+=(windTarget-windAngle)*.02;
+  const li=Math.min(Math.floor(t/.2),5);
+  document.getElementById('wlbl').textContent='风向：'+windLabels[li];
+}
+
+// ===================== 剧情阶段 =====================
+const phases=[
+  {name:'第一幕：两军对峙',desc:'<span class="tc">曹操</span>率数十万大军沿江布阵，<span class="ts">孙刘联军</span>在南岸赤壁集结，两军隔江对峙。'},
+  {name:'第二幕：初战失利',desc:'<span class="tc">曹军</span>北方将士不习水战，初战失利，被<span class="ts">周瑜</span>水军击退，退守北岸乌林。'},
+  {name:'第三幕：连环船阵',desc:'<span class="tc">曹操</span>采纳庞统连环计，将战船首尾用铁索相连，以求平稳。<span class="tw">东南风</span>渐起。'},
+  {name:'第四幕：黄盖诈降',desc:'<span class="ts">黄盖</span>以苦肉计诈降，率装满薪草膏油的<span class="tf">火船</span>，趁<span class="tw">东南风</span>向曹营驶去。'},
+  {name:'第五幕：火烧赤壁',desc:'<span class="tf">火船</span>撞入曹营，火借风势迅速蔓延！连环船阵无法脱身，<span class="tc">曹军</span>大乱。'},
+  {name:'第六幕：曹操败走',desc:'<span class="tc">曹操</span>弃船登岸，率残部经华容道败走。<span class="ts">孙刘联军</span>大获全胜，奠定三分天下格局。'}
+];
+
+// ===================== 摄像机路径 =====================
+const camPath=[
+  {x:0,y:-320,z:520,rx:.62,rz:0},
+  {x:80,y:-280,z:480,rx:.6,rz:.15},
+  {x:-60,y:-250,z:500,rx:.58,rz:-.1},
+  {x:-100,y:-200,z:450,rx:.55,rz:-.2},
+  {x:50,y:-260,z:480,rx:.6,rz:.05},
+  {x:120,y:-300,z:520,rx:.62,rz:.2}
+];
+
+// ===================== 全局状态 =====================
+let phase=0,phaseT=0,playing=true,globalT=0,lastT=0,fireStarted=false;
+
+// ===================== 信息面板 =====================
+function updateInfo(){
+  document.getElementById('ititle').textContent=phases[phase].name;
+  document.getElementById('icontent').innerHTML=phases[phase].desc;
+  document.getElementById('plbl').textContent=phases[phase].name;
+  document.getElementById('pfill').style.width=(globalT*100)+'%';
+}
+</script>
+</body>
+</html>

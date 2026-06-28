@@ -69,24 +69,28 @@ async function main() {
 ### 为什么？
 - 你的单次输出有 token 限制，无法一次性生成完整的大型文件
 - 如果你试图一次性写入整个文件，内容会被截断，文件不完整
-- 创建多个不完整的文件是浪费，**必须用 append 模式追加到同一个文件**
+- 必须用 append 模式分块写入同一个文件
 
 ### 正确做法（严格遵守）：
-1. **第一次**：file_write(path="output.html", content="文件开头部分...", append=false)
-2. **后续每次**：file_write(path="output.html", content="下一部分内容...", append=true)
-3. **最后一次**：file_write(path="output.html", content="</body></html>", append=true)
+1. **规划阶段**：先想好这个功能需要哪些文件（通常一个HTML页面 = 一个文件）
+2. **第一次**：file_write(path="output.html", content="文件开头部分...", append=false)
+3. **后续每次**：file_write(path="output.html", content="下一部分内容...", append=true)
+4. **最后一次**：file_write(path="output.html", content="</body></html>", append=true)
 
 ### 错误做法（绝对禁止）：
-- ❌ 试图一次性写入整个文件
-- ❌ 创建多个不同文件名的文件
-- ❌ 发现文件不完整时创建新文件重写
+- ❌ 试图一次性写入整个文件（会被截断！）
+- ❌ 同一个功能创建多个文件（如 chibi.html, chibi_3d.html, chibi_final.html）
+- ❌ 发现文件不完整时创建新文件重写（应该用 append 追加！）
+
+### 多文件项目的正确方式：
+- 不同功能用不同文件（如 index.html + style.css + app.js）
+- 但每个文件**单独用 append 模式分块生成**
+- 不要因为一个文件写不完就创建同名变体文件
 
 ### 每次写入建议量：
 - 每次写入 3000-8000 字符
 - HTML文件必须以 </html> 结尾
-- 分成 5-15 次写入完成整个文件
-
-记住：**永远只操作一个文件，用 append 模式追加内容！**`,
+- 分成 5-15 次写入完成整个文件`,
   });
 
   // 4. 启动 Web 服务器（静态页面 + WebSocket）

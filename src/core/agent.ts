@@ -284,7 +284,7 @@ export class Agent {
                   this.logger.warn(`Detected new file creation (${filePath}) instead of append mode`);
                   messages.push({
                     role: 'user',
-                    content: `⚠️ 警告：你正在创建新文件 ${filePath}，但之前已经创建过类似文件。请停止创建新文件！应该使用 append 模式继续写入之前的文件：file_write(path="${prevFileWrites[prevFileWrites.length - 1].arguments.path}", content="继续的内容...", append=true)。记住：只操作一个文件，用 append 追加！`,
+                    content: `⚠️ 警告：你正在创建新文件 ${filePath}，但之前已经创建过同类型文件（${prevFileWrites[prevFileWrites.length - 1].arguments.path}）。请停止创建新文件！应该使用 append 模式继续写入之前的文件：file_write(path="${prevFileWrites[prevFileWrites.length - 1].arguments.path}", content="继续的内容...", append=true)。一个功能一个文件，用 append 分块生成！`,
                   });
                 }
               }
