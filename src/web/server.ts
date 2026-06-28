@@ -262,6 +262,25 @@ export class WebServer {
         let result;
         try {
           result = await this.agent.runWithHistory(history, channelMessage.content);
+        } catch (agentError) {
+          // Agent 执行出错，发送错误消息给前端
+          const errorMsg = agentError instanceof Error ? agentError.message : String(agentError);
+          logger.error('Agent execution failed', agentError);
+          try {
+            ws.send(JSON.stringify({
+              type: 'delta',
+              content: `\n\n❌ Agent 错误: ${errorMsg}\n`,
+            }));
+          } catch { /* ignore */ }
+          originalOptions.streamCallback = prevCallback;
+          ws.send(JSON.stringify({
+            type: 'response',
+            id: channelMessage.id,
+            content: `❌ Agent 错误: ${errorMsg}`,
+            toolCalls: 0,
+            status: 'error',
+          }));
+          return;
         } finally {
           originalOptions.streamCallback = prevCallback;
         }
@@ -275,10 +294,18 @@ export class WebServer {
           .filter((m) => m.role === 'assistant')
           .pop();
 
+        // content 可能是 string 或 content blocks 数组，提取纯文本
+        const lastContent = lastAssistant?.content;
+        const responseText = typeof lastContent === 'string'
+          ? lastContent
+          : Array.isArray(lastContent)
+            ? lastContent.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
+            : '';
+
         ws.send(JSON.stringify({
           type: 'response',
           id: channelMessage.id,
-          content: lastAssistant?.content ?? '',
+          content: responseText,
           toolCalls: result.toolCalls.length,
           status: result.status,
         }));

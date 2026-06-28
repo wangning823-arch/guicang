@@ -12,6 +12,18 @@ import { ContextCompressor, type CompressorOptions } from './compressor.js';
 import { SelfReflection, type ReflectionOptions } from './reflection.js';
 import { StreamHandler, type StreamCallback } from './stream.js';
 
+/** 从 content 中提取纯文本（content 可能是 string 或 content blocks 数组） */
+function extractText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('');
+  }
+  return '';
+}
+
 export interface AgentOptions {
   /** 最大循环次数（防止无限循环） */
   maxIterations?: number;
@@ -96,6 +108,7 @@ export class Agent {
         // 调用 LLM
         this.status = 'thinking';
         this.logger.debug(`Sending ${messages.length} messages to LLM`);
+        this.logger.info(`Iteration ${iterations}: calling LLM...`);
 
         // 通知前端进度
         if (this.options.streamCallback && iterations > 1) {
@@ -104,11 +117,32 @@ export class Agent {
             delta: `\n⏳ 思考中 (第${iterations}轮)...\n`,
           });
         }
-        const response: LLMResponse = await this.provider.chat(
-          messages,
-          toolDefs.length > 0 ? toolDefs : undefined,
-          this.options.providerOptions,
-        );
+        let response: LLMResponse;
+        try {
+          response = await this.provider.chat(
+            messages,
+            toolDefs.length > 0 ? toolDefs : undefined,
+            this.options.providerOptions,
+          );
+        } catch (llmError) {
+          const errorDetail = llmError instanceof Error ? llmError.message : String(llmError);
+          this.logger.error(`LLM call failed: ${errorDetail}`);
+          const errorMsg = `LLM 调用失败: ${errorDetail}`;
+          if (this.options.streamCallback) {
+            this.options.streamCallback({ type: 'text_delta', delta: `\n❌ ${errorMsg}\n` });
+          }
+          this.status = 'error';
+          return {
+            status: 'error',
+            messages,
+            toolCalls: allToolCalls,
+            totalUsage,
+            error: errorMsg,
+          };
+        }
+
+        const textContent = extractText(response.message.content);
+        this.logger.info(`LLM response: stopReason=${response.stopReason}, toolCalls=${response.toolCalls?.length ?? 0}, contentLen=${textContent.length}`);
 
         // 累计 token 使用量
         if (response.usage) {
@@ -120,16 +154,18 @@ export class Agent {
         // 如果没有工具调用，返回最终结果
         if (!response.toolCalls || response.toolCalls.length === 0) {
           // 流式输出文本增量
-          if (this.options.streamCallback && response.message.content) {
+          this.logger.info(`No tool calls, streaming text (${textContent.length} chars)`);
+          if (this.options.streamCallback) {
+            const streamText = textContent || '(模型返回了空内容)';
             const streamHandler = new StreamHandler(this.options.streamCallback);
-            streamHandler.handleTextDelta(response.message.content);
+            streamHandler.handleTextDelta(streamText);
             streamHandler.finish();
           }
 
           messages.push(response.message);
 
           // 检测是否因 max_tokens 截断，自动续写
-          if (response.stopReason === 'max_tokens' && response.message.content) {
+          if (response.stopReason === 'max_tokens' && textContent) {
             this.logger.info('Response truncated (max_tokens), continuing...');
             messages.push({
               role: 'user',
@@ -144,7 +180,7 @@ export class Agent {
             this.logger.info('Running self-reflection on final output...');
             const context = messages.map((m) => `${m.role}: ${m.content}`).join('\n');
             const reflection = await this.reflection.evaluate(
-              response.message.content,
+              textContent,
               context,
               this.provider,
             );
@@ -172,19 +208,12 @@ export class Agent {
         // 有工具调用，并行执行所有工具
         this.status = 'acting';
 
-        // 流式输出文本部分（如果有）
-        if (this.options.streamCallback && response.message.content) {
-          const streamHandler = new StreamHandler(this.options.streamCallback);
-          streamHandler.handleTextDelta(response.message.content);
-          streamHandler.finish();
-        }
-
-        // 通知前端正在执行工具
+        // 通知前端正在执行工具（不流式输出原始 JSON 内容块）
         if (this.options.streamCallback) {
           const toolNames = response.toolCalls.map((tc) => tc.name).join(', ');
           this.options.streamCallback({
             type: 'text_delta',
-            delta: `\n\n🔧 正在执行工具: ${toolNames}...\n`,
+            delta: `\n🔧 正在执行工具: ${toolNames}...\n`,
           });
         }
 

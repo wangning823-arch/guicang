@@ -114,8 +114,15 @@ export class HTTPChannel extends BaseChannel {
           .filter((m) => m.role === 'assistant')
           .pop();
 
+        const lastContent = lastAssistant?.content;
+        const responseText = typeof lastContent === 'string'
+          ? lastContent
+          : Array.isArray(lastContent)
+            ? lastContent.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
+            : '';
+
         this.sendJSON(res, 200, {
-          response: lastAssistant?.content ?? '',
+          response: responseText,
           toolCalls: result.toolCalls.length,
           status: result.status,
         });
@@ -178,10 +185,17 @@ export class HTTPChannel extends BaseChannel {
           .filter((m) => m.role === 'assistant')
           .pop();
 
+        const lastContent = lastAssistant?.content;
+        const responseText = typeof lastContent === 'string'
+          ? lastContent
+          : Array.isArray(lastContent)
+            ? lastContent.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
+            : '';
+
         sendSSE({
           type: 'done',
           id: channelMessage.id,
-          content: lastAssistant?.content ?? '',
+          content: responseText,
           toolCalls: result.toolCalls.length,
           status: result.status,
         });

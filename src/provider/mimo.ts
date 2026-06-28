@@ -177,12 +177,7 @@ export class MimoProvider extends BaseProvider {
           });
         }
       } else if (msg.role === 'assistant') {
-        const parsed = this.tryParseContentBlocks(msg.content);
-        if (parsed) {
-          result.push({ role: 'assistant', content: parsed });
-        } else {
-          result.push({ role: 'assistant', content: msg.content });
-        }
+        result.push({ role: 'assistant', content: msg.content });
       } else {
         result.push({ role: msg.role, content: msg.content });
       }
@@ -240,9 +235,9 @@ export class MimoProvider extends BaseProvider {
     return {
       message: {
         role: 'assistant',
-        content: contentBlocks.length === 1 && contentBlocks[0].type === 'text'
-          ? textContent
-          : JSON.stringify(contentBlocks),
+        // 只保留文本内容，不存储 content blocks
+        // Mimo API 无法正确处理 content blocks 格式
+        content: textContent,
       },
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       usage: data.usage

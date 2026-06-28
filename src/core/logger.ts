@@ -64,7 +64,12 @@ export class Logger {
       // 默认输出到 console（安全处理循环引用）
       let json: string;
       try {
-        json = JSON.stringify(entry);
+        json = JSON.stringify(entry, (_key, value) => {
+          if (value instanceof Error) {
+            return { message: value.message, stack: value.stack, name: value.name };
+          }
+          return value;
+        });
       } catch {
         // 处理循环引用等无法序列化的情况
         json = JSON.stringify({
