@@ -262,6 +262,36 @@ export class Agent {
           }),
         );
 
+        // 检测是否创建了新文件而不是使用 append 模式
+        // 如果检测到，添加警告提示
+        if (!shouldSkipTools) {
+          for (const toolCall of response.toolCalls) {
+            if (toolCall.name === 'file_write') {
+              const filePath = toolCall.arguments.path as string;
+              const appendMode = toolCall.arguments.append as boolean;
+
+              // 检查之前是否写过同类型文件（HTML/CSS/JS）
+              if (filePath && !appendMode) {
+                const prevFileWrites = allToolCalls.filter(
+                  (tc) => tc.name === 'file_write' &&
+                    (tc.arguments.path as string) !== filePath &&
+                    /\.\w+$/.test(tc.arguments.path as string) &&
+                    tc.arguments.path &&
+                    (tc.arguments.path as string).split('.').pop() === filePath.split('.').pop()
+                );
+
+                if (prevFileWrites.length > 0) {
+                  this.logger.warn(`Detected new file creation (${filePath}) instead of append mode`);
+                  messages.push({
+                    role: 'user',
+                    content: `⚠️ 警告：你正在创建新文件 ${filePath}，但之前已经创建过类似文件。请停止创建新文件！应该使用 append 模式继续写入之前的文件：file_write(path="${prevFileWrites[prevFileWrites.length - 1].arguments.path}", content="继续的内容...", append=true)。记住：只操作一个文件，用 append 追加！`,
+                  });
+                }
+              }
+            }
+          }
+        }
+
         // 按顺序将结果添加到消息和记录中
         for (let i = 0; i < response.toolCalls.length; i++) {
           const toolCall = response.toolCalls[i];
@@ -296,6 +326,32 @@ export class Agent {
             role: 'user',
             content: '你的输出被 token 限制截断了，工具调用的内容不完整，已跳过执行。请重新生成完整的工具调用。如果内容太长无法一次输出，请将内容分成多个较小的部分，分别调用 file_write（使用 append 模式）来完成。',
           });
+        }
+
+        // 检测 file_write 是否写入了不完整的 HTML 文件（被截断）
+        // 如果是，自动提示 LLM 用 append 模式继续写入
+        if (!shouldSkipTools) {
+          const lastToolCall = response.toolCalls[response.toolCalls.length - 1];
+          if (lastToolCall?.name === 'file_write') {
+            const filePath = lastToolCall.arguments.path as string;
+            const fileContent = lastToolCall.arguments.content as string;
+            const appendMode = lastToolCall.arguments.append as boolean;
+
+            // 检查是否是 HTML 文件且内容被截断（没有正确的闭合标签）
+            if (filePath && typeof fileContent === 'string' && !appendMode) {
+              const isHtml = /\.(html?|htm)$/i.test(filePath);
+              const hasClosingHtml = /<\/html>/i.test(fileContent);
+              const hasClosingBody = /<\/body>/i.test(fileContent);
+
+              if (isHtml && (!hasClosingHtml || !hasClosingBody)) {
+                this.logger.info(`File ${filePath} appears truncated (missing closing tags), prompting for append continuation`);
+                messages.push({
+                  role: 'user',
+                  content: `文件 ${filePath} 写入成功但内容不完整（缺少闭合标签）。请使用 append 模式继续追加剩余内容：file_write(path="${filePath}", content="剩余的HTML内容...", append=true)。不要创建新文件，不要重写整个文件，只追加缺失的部分。`,
+                });
+              }
+            }
+          }
         }
 
         this.status = 'observing';

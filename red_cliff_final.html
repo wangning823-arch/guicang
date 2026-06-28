@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤壁之战 · 3D战略俯瞰演示</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#000;overflow:hidden;color:#fff;user-select:none}
+canvas{display:block;cursor:grab}
+canvas:active{cursor:grabbing}
+
+/* Loading */
+#LD{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity 1.2s}
+#LD.out{opacity:0;pointer-events:none}
+#LD h1{font-size:48px;font-weight:900;background:linear-gradient(90deg,#ffd700,#ff4500,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:16px;margin-bottom:6px}
+#LD .y{color:#ffd70066;font-size:15px;letter-spacing:8px;margin-bottom:50px}
+#LD .b{width:340px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden}
+#LD .f{height:100%;width:0;background:linear-gradient(90deg,#ffd700,#ff4500);transition:width .15s}
+#LD .tp{margin-top:22px;font-size:12px;color:#555;letter-spacing:3px}
+
+/* Header */
+.hdr{position:fixed;top:0;left:0;right:0;height:52px;background:linear-gradient(180deg,rgba(0,0,0,.95),transparent);display:flex;align-items:center;justify-content:center;z-index:200;pointer-events:none}
+.hdr .t{font-size:28px;font-weight:900;letter-spacing:12px;background:linear-gradient(90deg,#ffd700,#ff6b35,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hdr .yr{font-size:12px;color:#ffd70088;margin-left:18px;letter-spacing:4px}
+
+/* Info Panel */
+#INF{position:fixed;top:62px;right:16px;width:280px;background:rgba(0,0,0,.88);border:1px solid rgba(255,165,0,.2);border-radius:12px;padding:18px 20px;z-index:200;backdrop-filter:blur(10px);transition:all .5s}
+#INF h3{font-size:17px;color:#ffd700;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(255,165,0,.15)}
+#INF .d{font-size:12.5px;line-height:2;color:#ccc}
+#INF .lg{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+#INF .lg span{font-size:11px;display:flex;align-items:center;gap:5px}
+#INF .lg i{width:12px;height:12px;border-radius:3px;display:inline-block}
+
+/* Phase Bar */
+#PH{position:fixed;top:62px;left:16px;width:280px;z-index:200}
+#PH .ph{background:rgba(0,0,0,.88);border:1px solid rgba(255,165,0,.15);border-radius:10px;padding:14px 16px;margin-bottom:8px;transition:all .4s;cursor:pointer}
+#PH .ph:hover{border-color:rgba(255,165,0,.4)}
+#PH .ph.act{border-color:#ffd700;background:rgba(255,215,0,.08)}
+#PH .ph .pn{font-size:14px;font-weight:700;color:#ffd700}
+#PH .ph .pt{font-size:11px;color:#888;margin-top:3px}
+
+/* Bottom Controls */
+#CTL{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(0deg,rgba(0,0,0,.95),rgba(0,0,0,.7) 70%,transparent);padding:16px 40px 24px;z-index:200}
+.tl-wrap{margin-bottom:12px}
+.tl{width:100%;height:6px;background:rgba(255,255,255,.1);border-radius:3px;cursor:pointer;position:relative}
+.tl .prog{height:100%;background:linear-gradient(90deg,#ffd700,#ff4500);border-radius:3px;transition:width .05s}
+.tl .dot{width:16px;height:16px;background:#ffd700;border-radius:50%;position:absolute;top:50%;transform:translate(-50%,-50%);box-shadow:0 0 12px #ffd70088;transition:left .05s}
+.tl .marks{position:relative;height:20px;margin-top:4px}
+.tl .marks span{position:absolute;transform:translateX(-50%);font-size:9px;color:#555;white-space:nowrap}
+.btn-row{display:flex;align-items:center;justify-content:center;gap:16px}
+.btn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;width:42px;height:42px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.btn:hover{background:rgba(255,215,0,.15);border-color:#ffd700}
+.btn.play{width:52px;height:52px;font-size:22px;background:linear-gradient(135deg,#ffd700,#ff8c00);border:none;color:#000}
+.btn.play:hover{transform:scale(1.08)}
+.spd{display:flex;gap:6px;margin-left:20px}
+.spd button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#888;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;transition:all .2s}
+.spd button:hover,.spd button.a{color:#ffd700;border-color:#ffd700}
+</style>
+</head>
+<body>
+
+<div id="LD">
+  <h1>赤壁之战</h1>
+  <div class="y">建安十三年 · 公元208年</div>
+  <div class="b"><div class="f" id="LF"></div></div>
+  <div class="tp">正在构建战场三维态势…</div>
+</div>
+
+<div class="hdr">
+  <span class="t">赤 壁 之 战</span>
+  <span class="yr">建安十三年 · 公元208年冬</span>
+</div>
+
+<div id="INF">
+  <h3 id="IT">战役概览</h3>
+  <div class="d" id="ID">曹操率八十万大军南下，孙刘联军于赤壁合力抗敌。长江之上，一场改变天下格局的大战即将打响。</div>
+  <div class="lg">
+    <span><i style="background:#2266cc"></i>曹操军</span>
+    <span><i style="background:#cc2222"></i>孙刘联军</span>
+    <span><i style="background:#ff6600"></i>火攻</span>
+    <span><i style="background:#00cc88"></i>风向</span>
+    <span><i style="background:#334455"></i>地形</span>
+  </div>
+</div>
+
+<div id="PH"></div>
+
+<div id="CTL">
+  <div class="tl-wrap">
+    <div class="tl" id="TL">
+      <div class="prog" id="TP"></div>
+      <div class="dot" id="TD"></div>
+      <div class="marks" id="TM"></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" id="BPREV" title="上一阶段">⏮</button>
+    <button class="btn play" id="BPLAY" title="播放/暂停">▶</button>
+    <button class="btn" id="BNEXT" title="下一阶段">⏭</button>
+    <div class="spd">
+      <button data-s="0.5">0.5×</button>
+      <button data-s="1" class="a">1×</button>
+      <button data-s="2">2×</button>
+      <button data-s="4">4×</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="C"></canvas>
+
+<script>
+// ============================================================
+//  RED CLIFF 3D BATTLE VISUALIZATION
+//  Pure Canvas 2D with isometric 3D projection
+// ============================================================
+
+const canvas = document.getElementById('C');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ---- Isometric Projection ----
+const ISO = {
+  // World coordinates -> screen coordinates
+  // World: x=East, y=North, z=Up
+  // Screen: x=Right, y=Down
+  cosA: Math.cos(Math.PI/6),   // 30 degrees
+  sinA: Math.sin(Math.PI/6),
+  tilt: 0.6,   // vertical compression for 3D feel
+  scale: 1,
+  offX: 0,
+  offY: 0,
+
+  project(wx, wy, wz) {
+    const sx = (wx - wy) * this.cosA * this.scale;
+    const sy = (wx + wy) * this.sinA * this.scale * this.tilt - wz * this.scale;
+    return [sx + this.offX + W/2, sy + this.offY + H * 0.55];
+  },
+
+  setZoom(z) { this.scale = z; },
+  setPan(x, y) { this.offX = x; this.offY = y; }
+};
+
+// ---- Camera Control ----
+let cam = {
+  targetX: 0, targetY: 0, targetZoom: 1.4,
+  currentX: 0, currentY: 0, currentZoom: 1.4,
+  lerp: 0.03,
+  // Smooth interpolation
+  update() {
+    this.currentX += (this.targetX - this.currentX) * this.lerp;
+    this.currentY += (this.targetY - this.currentY) * this.lerp;
+    this.currentZoom += (this.targetZoom - this.currentZoom) * this.lerp;
+    ISO.setZoom(this.currentZoom);
+    ISO.setPan(this.currentX, this.currentY);
+  },
+  moveTo(x, y, zoom) {
+    this.targetX = x;
+    this.targetY = y;
+    this.targetZoom = zoom || this.targetZoom;
+  }
+};
+
+// Mouse drag
+let dragging = false, dragStartX, dragStartY, camStartX, camStartY;
+canvas.addEventListener('mousedown', e => {
+  dragging = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  camStartX = cam.targetX;
+  camStartY = cam.targetY;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  cam.targetX = camStartX + (e.clientX - dragStartX);
+  cam.targetY = camStartY + (e.clientY - dragStartY);
+  cam.currentX = cam.targetX;
+  cam.currentY = cam.targetY;
+});
+canvas.addEventListener('mouseup', () => dragging = false);
+canvas.addEventListener('mouseleave', () => dragging = false);
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.targetZoom = Math.max(0.5, Math.min(4, cam.targetZoom - e.deltaY * 0.001));
+}, { passive: false });
+
+// ============================================================
+//  TERRAIN DATA
+// ============================================================
+const WORLD_SIZE = 1200;
+const RIVER_Y_MIN = -80, RIVER_Y_MAX = 80;
+
+// Terrain heightmap (simplified)
+function terrainHeight(x, y) {
+  // River bed
+  if (y > RIVER_Y_MIN && y < RIVER_Y_MAX) return -15;
+  // Banks slope up
+  const bankDist = y < 0 ? Math.abs(y + 80) : Math.abs(y - 80);
+  if (bankDist < 60) return bankDist * 0.8 - 5;
+  // Hills
+  const h1 = Math.sin(x * 0.005) * 30 + Math.cos(y * 0.008) * 20;
+  const h2 = Math.sin(x * 0.012 + y * 0.009) * 15;
+  return Math.max(0, 40 + h1 + h2);
+}
+
+function isWater(x, y) {
+  return y > RIVER_Y_MIN - 10 && y < RIVER_Y_MAX + 10;
+}
+
+// ============================================================
+//  BATTLE PHASES
+// ============================================================
+const PHASES = [
+  {
+    id: 0,
+    name: '第一幕：两军对峙',
+    time: '建安十三年冬',
+    desc: '曹操率大军沿长江北岸展开，战船绵延数百里。孙刘联军于南岸赤壁一带扎营，隔江对峙。周瑜审视敌情，制定火攻之策。',
+    cam: { x: 0, y: 0, zoom: 1.0 },
+    duration: 10000
+  },
+  {
+    id: 1,
+    name: '第二幕：连环锁船',
+    time: '对峙数日',
+    desc: '曹操采纳庞统之计，将战船首尾相连，以铁链锁之，使北方士卒不习水战之苦得以缓解。然此举正中联军下怀——连环船阵，正为火攻创造了绝佳条件。',
+    cam: { x: 100, y: -30, zoom: 1.6 },
+    duration: 10000
+  },
+  {
+    id: 2,
+    name: '第三幕：黄盖诈降',
+    time: '决战前夜',
+    desc: '黄盖向曹操献诈降书，佯称愿率部投诚。曹操信以为真，约定接应。黄盖备好蒙冲斗舰，满载薪草膏油，外加帷幕伪装，准备发起致命一击。',
+    cam: { x: -200, y: 200, zoom: 1.3 },
+    duration: 8000
+  },
+  {
+    id: 3,
+    name: '第四幕：东南风起',
+    time: '是夜',
+    desc: '冬日忽然东南风大作——这正是诸葛亮借东风的传说。风向由西北转为东南，联军战旗猎猎作响。黄盖率火船借风势直扑曹军水寨！',
+    cam: { x: -100, y: 100, zoom: 1.4 },
+    duration: 10000
+  },
+  {
+    id: 4,
+    name: '第五幕：火烧赤壁',
+    time: '火光冲天',
+    desc: '火船撞入曹军连环船阵，火借风势，风助火威！顷刻之间，江面上一片火海。曹军战船首尾相连无法脱散，大火延烧至岸上营寨，曹军大乱。',
+    cam: { x: 150, y: -50, zoom: 1.5 },
+    duration: 12000
+  },
+  {
+    id: 5,
+    name: '第六幕：追击与败退',
+    time: '曹操败走华容道',
+    desc: '曹操沿华容道仓皇北逃，联军乘势追击。诸葛亮料定曹操必走华容道，遣关羽设伏。天下三分之势，由此奠定。',
+    cam: { x: 0, y: 0, zoom: 0.8 },
+    duration: 10000
+  }
+];
+
+// ============================================================
+//  SIMULATION STATE
+// ============================================================
+let sim = {
+  time: 0,           // 0 to 1
+  playing: false,
+  speed: 1,
+  phase: 0,
+  phaseTime: 0
+};
+
+// ============================================================
+//  SHIPS DATA
+// ============================================================
+const ships = [];
+const FIRE_SHIPS_COUNT = 10;
+
+// Create Cao Cao's fleet (north bank)
+for (let i = 0; i < 30; i++) {
+  const row = Math.floor(i / 10);
+  const col = i % 10;
+  ships.push({
+    id: i,
+    x: -200 + col * 60,
+    y: -30 - row * 25,
+    w: 40 + Math.random() * 20,
+    h: 12 + Math.random() * 4,
+    team: 'cao',
+    locked: false,  // whether chained
+    onFire: false,
+    fireTime: 0,
+    sinking: false,
+    sinkTime: 0,
+    speed: 0,
+    angle: -0.15
+  });
+}
+
+// Create Sun-Liu allied fleet (south bank)
+for (let i = 0; i < 18; i++) {
+  const row = Math.floor(i / 6);
+  const col = i % 6;
+  ships.push({
+    id: 30 + i,
+    x: -100 + col * 55,
+    y: 40 + row * 25,
+    w: 35 + Math.random() * 15,
+    h: 10 + Math.random() * 3,
+    team: 'ally',
+    locked: false,
+    onFire: false,
+    fireTime: 0,
+    sinking: false,
+    sinkTime: 0,
+    speed: 0,
+    angle: 0.15
+  });
+}
+
+// Fire ships (Huang Gai's)
+const fireShips = [];
+for (let i = 0; i < FIRE_SHIPS_COUNT; i++) {
+  fireShips.push({
+    x: -250 + i * 20,
+    y: 80 + i * 8,
+    startX: -250 + i * 20,
+    startY: 80 + i * 8,
+    targetX: -150 + i * 45,
+    targetY: -20,
+    w: 35,
+    h: 10,
+    launched: false,
+    progress: 0,
+    burning: true,
+    angle: -0.5
+  });
+}
+
+// ============================================================
+//  WIND SYSTEM
+// ============================================================
+let windAngle = Math.PI; // starts as northwest wind (blowing southeast)
+let windStrength = 0;
+const windParticles = [];
+
+for (let i = 0; i < 200; i++) {
+  windParticles.push({
+    x: (Math.random() - 0.5) * WORLD_SIZE * 1.5,
+    y: (Math.random() - 0.5) * WORLD_SIZE * 1.5,
+    speed: 0,
+    size: 1 + Math.random() * 2,
+    alpha: 0
+  });
+}
+
+// ============================================================
+//  FIRE PARTICLES
+// ============================================================
+const fireParticles = [];
+
+function spawnFireParticles(x, y, count, spread) {
+  for (let i = 0; i < count; i++) {
+    fireParticles.push({
+      x: x + (Math.random() - 0.5) * spread,
+      y: y + (Math.random() - 0.5) * spread * 0.3,
+      vx: (Math.random() - 0.5) * 0.8,
+      vy: -Math.random() * 2 - 0.5,
+      life: 1,
+      decay: 0.01 + Math.random() * 0.02,
+      size: 2 + Math.random() * 4,
+      hue: Math.random() < 0.3 ? 30 : (Math.random() < 0.6 ? 15 : 5)
+    });
+  }
+}
+
+function updateFireParticles(dt) {
+  for (let i = fireParticles.length - 1; i >= 0; i--) {
+    const p = fireParticles[i];
+    p.x += p.vx + windStrength * Math.cos(windAngle) * 0.3;
+    p.y += p.vy;
+    p.vy -= 0.02;
+    p.life -= p.decay;
+    p.size *= 0.99;
+    if (p.life <= 0) fireParticles.splice(i, 1);
+  }
+}
+
+// ============================================================
+//  DRAWING FUNCTIONS
+// ============================================================
+
+// Draw the terrain and river
+function drawTerrain() {
+  const gridSize = 30;
+  const range = 800;
+  
+  // Collect quads for sorting (painter's algorithm)
+  const quads = [];
+  
+  for (let gx = -range; gx < range; gx += gridSize) {
+    for (let gy = -range; gy < range; gy += gridSize) {
+      const h = terrainHeight(gx + gridSize/2, gy + gridSize/2);
+      const water = isWater(gx + gridSize/2, gy + gridSize/2);
+      
+      const p1 = ISO.project(gx, gy, water ? -15 : h);
+      const p2 = ISO.project(gx + gridSize, gy, water ? -15 : h);
+      const p3 = ISO.project(gx + gridSize, gy + gridSize, water ? -15 : h);
+      const p4 = ISO.project(gx, gy + gridSize, water ? -15 : h);
+      
+      // Sort key: further back first
+      const sortKey = (gx + gy);
+      
+      quads.push({
+        p: [p1, p2, p3, p4],
+        water, sortKey,
+        gx, gy, h
+      });
+    }
+  }
+  
+  quads.sort((a, b) => a.sortKey - b.sortKey);
+  
+  for (const q of quads) {
+    ctx.beginPath();
+    ctx.moveTo(q.p[0][0], q.p[0][1]);
+    ctx.lineTo(q.p[1][0], q.p[1][1]);
+    ctx.lineTo(q.p[2][0], q.p[2][1]);
+    ctx.lineTo(q.p[3][0], q.p[3][1]);
+    ctx.closePath();
+    
+    if (q.water) {
+      // River water
+      const wave = Math.sin(Date.now() * 0.002 + q.gx * 0.05 + q.gy * 0.03) * 0.15;
+      const r = 15 + wave * 10;
+      const g = 35 + wave * 20;
+      const b = 65 + wave * 15;
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(80,140,200,0.15)`;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    } else {
+      // Land
+      const heightColor = Math.min(1, q.h / 60);
+      const r = Math.floor(35 + heightColor * 25);
+      const g = Math.floor(45 + heightColor * 30);
+      const b = Math.floor(30 + heightColor * 15);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(60,80,50,0.2)`;
+      ctx.lineWidth = 0.3;
+      ctx.stroke();
+    }
+  }
+  
+  // Draw river wave effects on top
+  drawRiverWaves();
+}
+
+// Animated river waves
+let waveTime = 0;
+function drawRiverWaves() {
+  waveTime += 0.02;
+  ctx.strokeStyle = 'rgba(100,180,255,0.12)';
+  ctx.lineWidth = 1;
+  
+  for (let i = 0; i < 15; i++) {
+    const y = RIVER_Y_MIN + 10 + i * 10;
+    ctx.beginPath();
+    let first = true;
+    for (let x = -600; x < 600; x += 10) {
+      const wave = Math.sin(x * 0.02 + waveTime + i * 0.5) * 3;
+      const [sx, sy] = ISO.project(x, y + wave, -12);
+      if (first) { ctx.moveTo(sx, sy); first = false; }
+      else ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+  }
+}
+
+// Draw a single ship
+function drawShip(x, y, w, h, angle, team, onFire, fireTime, sinking, sinkDepth) {
+  const [sx, sy] = ISO.project(x, y, sinking ? -sinkDepth * 15 : 0);
+  const scale = ISO.scale;
+  
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(angle * 0.3);
+  
+  const sw = w * scale * 0.25;
+  const sh = h * scale * 0.25;
+  
+  // Ship hull
+  if (team === 'cao') {
+    ctx.fillStyle = onFire ? '#8b4513' : '#2a3d6e';
+  } else {
+    ctx.fillStyle = onFire ? '#8b4513' : '#6e2a2a';
+  }
+  
+  // Hull shape
+  ctx.beginPath();
+  ctx.moveTo(-sw, 0);
+  ctx.quadraticCurveTo(-sw * 0.3, -sh, sw * 0.8, -sh * 0.6);
+  ctx.lineTo(sw, 0);
+  ctx.quadraticCurveTo(sw * 0.3, sh, -sw, 0);
+  ctx.fill();
+  
+  // Mast
+  if (!sinking) {
+    ctx.strokeStyle = team === 'cao' ? '#4466aa' : '#aa4444';
+    ctx.lineWidth = 1.5 * scale * 0.15;
+    ctx.beginPath();
+    ctx.moveTo(0, -sh * 0.3);
+    ctx.lineTo(0, -sh * 2);
+    ctx.stroke();
+    
+    // Flag
+    const flagWave = Math.sin(Date.now() * 0.003 + x * 0.1) * 3;
+    ctx.fillStyle = team === 'cao' ? '#2255cc' : '#cc2222';
+    ctx.beginPath();
+    ctx.moveTo(0, -sh * 2);
+    ctx.lineTo(8 * scale * 0.15 + flagWave, -sh * 1.7);
+    ctx.lineTo(0, -sh * 1.4);
+    ctx.fill();
+  }
+  
+  // Fire effect on burning ship
+  if (onFire) {
+    const intensity = Math.min(1, fireTime * 2);
+    for (let i = 0; i < 6; i++) {
+      const fx = (Math.random() - 0.5) * sw * 1.5;
+      const fy = -Math.random() * sh * 2 * intensity;
+      const fs = (2 + Math.random() * 4) * scale * 0.12;
+      const hue = Math.random() * 40;
+      ctx.fillStyle = `hsla(${hue},100%,${50+Math.random()*30}%,${0.6+Math.random()*0.4})`;
+      ctx.beginPath();
+      ctx.arc(fx, fy, fs, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Glow
+    const grad = ctx.createRadialGradient(0, -sh, 0, 0, -sh, sw * 1.5);
+    grad.addColorStop(0, `rgba(255,100,0,${0.3 * intensity})`);
+    grad.addColorStop(1, 'rgba(255,100,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(-sw * 2, -sh * 4, sw * 4, sh * 4);
+  }
+  
+  ctx.restore();
+}
+
+// Draw all ships sorted by depth
+function drawShips() {
+  // Collect all visible ships
+  const allShips = [];
+  
+  for (const s of ships) {
+    const sinkDepth = s.sinking ? s.sinkTime : 0;
+    allShips.push({
+      x: s.x, y: s.y, w: s.w, h: s.h,
+      angle: s.angle, team: s.team,
+      onFire: s.onFire, fireTime: s.fireTime,
+      sinking: s.sinking, sinkDepth,
+      sortKey: s.x + s.y
+    });
+  }
+  
+  for (const fs of fireShips) {
+    if (fs.launched || sim.phase >= 3) {
+      allShips.push({
+        x: fs.x, y: fs.y, w: fs.w, h: fs.h,
+        angle: fs.angle, team: 'fire',
+        onFire: fs.burning, fireTime: 1,
+        sinking: false, sinkDepth: 0,
+        sortKey: fs.x + fs.y
+      });
+    }
+  }
+  
+  allShips.sort((a, b) => a.sortKey - b.sortKey);
+  
+  for (const s of allShips) {
+    drawShip(s.x, s.y, s.w, s.h, s.angle, s.team, s.onFire, s.fireTime, s.sinking, s.sinkDepth);
+  }
+}
+
+// Draw chain links between locked ships
+function drawChains() {
+  if (sim.phase < 1) return;
+  
+  const chainProgress = Math.min(1, (sim.time - 0.15) * 5);
+  
+  // Chain Cao Cao's ships
+  ctx.strokeStyle = `rgba(150,150,160,${chainProgress * 0.6})`;
+  ctx.lineWidth = 2 * ISO.scale * 0.12;
+  ctx.setLineDash([4, 4]);
+  
+  for (let i = 0; i < ships.length - 1; i++) {
+    if (ships[i].team === 'cao' && ships[i+1].team === 'cao') {
+      if (Math.floor(i/10) === Math.floor((i+1)/10)) {
+        const [sx1, sy1] = ISO.project(ships[i].x, ships[i].y, 0);
+        const [sx2, sy2] = ISO.project(ships[i+1].x, ships[i+1].y, 0);
+        ctx.beginPath();
+        ctx.moveTo(sx1, sy1);
+        ctx.lineTo(sx2, sy2);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.setLineDash([]);
+}
+
+// Draw wind particles/arrows
+function drawWind() {
+  if (windStrength < 0.01) return;
+  
+  const arrowColor = `rgba(0,210,140,${windStrength * 0.7})`;
+  
+  for (const p of windParticles) {
+    if (p.alpha < 0.01) continue;
+    
+    const [sx, sy] = ISO.project(p.x, p.y, 20);
+    
+    // Draw as arrow
+    const len = 12 * ISO.scale * 0.15 * p.alpha;
+    const endX = sx + Math.cos(windAngle) * len;
+    const endY = sy + Math.sin(windAngle) * len * 0.5;
+    
+    ctx.strokeStyle = `rgba(0,210,140,${p.alpha * 0.5})`;
+    ctx.lineWidth = p.size * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    
+    // Arrowhead
+    const headLen = 4;
+    const headAngle = Math.atan2(endY - sy, endX - sx);
+    ctx.fillStyle = `rgba(0,210,140,${p.alpha * 0.6})`;
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(
+      endX - headLen * Math.cos(headAngle - 0.5),
+      endY - headLen * Math.sin(headAngle - 0.5)
+    );
+    ctx.lineTo(
+      endX - headLen * Math.cos(headAngle + 0.5),
+      endY - headLen * Math.sin(headAngle + 0.5)
+    );
+    ctx.fill();
+  }
+}
+
+// Draw fire particles
+function drawFireParticles() {
+  for (const p of fireParticles) {
+    const [sx, sy] = ISO.project(p.x, p.y, 10 + p.vy * 3);
+    const s = p.size * ISO.scale * 0.12;
+    
+    const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, s * 2);
+    grad.addColorStop(0, `hsla(${p.hue},100%,70%,${p.life})`);
+    grad.addColorStop(0.5, `hsla(${p.hue + 10},100%,50%,${p.life * 0.5})`);
+    grad.addColorStop(1, `hsla(${p.hue + 20},100%,30%,0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(sx, sy, s * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Draw army formations on land
+function drawArmies() {
+  const phase = sim.phase;
+  
+  // Cao Cao's northern army camp
+  if (phase <= 3) {
+    const campAlpha = phase < 5 ? 1 : Math.max(0, 2 - sim.time * 3);
+    drawFormation(-150, -180, 200, 120, '#2244aa', '曹', campAlpha);
+  }
+  
+  // Sun-Liu southern camp
+  if (phase <= 4) {
+    drawFormation(50, 200, 150, 100, '#aa2222', '孙刘', 1);
+  }
+  
+  // Retreat route (phase 5)
+  if (phase === 5) {
+    drawRetreatRoute();
+  }
+}
+
+function drawFormation(cx, cy, w, h, color, label, alpha) {
+  const [sx, sy] = ISO.project(cx, cy, 0);
+  const scale = ISO.scale * 0.3;
+  
+  // Camp boundary
+  ctx.strokeStyle = color + '66';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 4]);
+  
+  const pts = [
+    ISO.project(cx - w/2, cy - h/2, 0),
+    ISO.project(cx + w/2, cy - h/2, 0),
+    ISO.project(cx + w/2, cy + h/2, 0),
+    ISO.project(cx - w/2, cy + h/2, 0)
+  ];
+  
+  ctx.beginPath();
+  ctx.globalAlpha = alpha;
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < 4; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle = color + '15';
+  ctx.fill();
+  ctx.setLineDash([]);
+  
+  // Troop dots
+  const time = Date.now() * 0.001;
+  for (let i = 0; i < 40; i++) {
+    const tx = cx - w/3 + (i % 8) * w/7;
+    const ty = cy - h/3 + Math.floor(i / 8) * h/6;
+    const breathe = Math.sin(time + i * 0.3) * 2;
+    const [px, py] = ISO.project(tx, ty, 2 + breathe);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha * 0.7;
+    ctx.beginPath();
+    ctx.arc(px, py, 2.5 * ISO.scale * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Label
+  ctx.globalAlpha = alpha;
+  ctx.font = `bold ${14 * ISO.scale * 0.12}px 'Microsoft YaHei'`;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.fillText(label, sx, sy - 10);
+  ctx.globalAlpha = 1;
+}
+
+function drawRetreatRoute() {
+  const routePoints = [
+    [100, -50], [180, -120], [280, -180], [400, -250],
+    [500, -350], [550, -450]
+  ];
+  
+  const progress = Math.min(1, (sim.time - 0.75) * 4);
+  const visibleCount = Math.floor(progress * routePoints.length);
+  
+  ctx.strokeStyle = '#ff660088';
+  ctx.lineWidth = 3 * ISO.scale * 0.1;
+  ctx.setLineDash([12, 6]);
+  ctx.beginPath();
+  
+  for (let i = 0; i <= visibleCount && i < routePoints.length; i++) {
+    const [sx, sy] = ISO.project(routePoints[i][0], routePoints[i][1], 5);
+    if (i === 0) ctx.moveTo(sx, sy);
+    else ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Retreating soldiers
+  if (visibleCount > 0) {
+    for (let i = 0; i < visibleCount; i++) {
+      const [sx, sy] = ISO.project(
+        routePoints[i][0] + Math.sin(Date.now()*0.003+i)*5,
+        routePoints[i][1] + Math.cos(Date.now()*0.002+i)*3,
+        3
+      );
+      ctx.fillStyle = '#4466cc88';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2 * ISO.scale * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  
+  // "华容道" label
+  if (visibleCount >= 4) {
+    const [lx, ly] = ISO.project(400, -250, 20);
+    ctx.font = `bold ${13 * ISO.scale * 0.1}px 'Microsoft YaHei'`;
+    ctx.fillStyle = '#ff8c00';
+    ctx.textAlign = 'center';
+    ctx.fillText('← 华容道', lx, ly);
+  }
+}
+
+// Draw place labels
+function drawLabels() {
+  const labels = [
+    { x: 0, y: -100, z: 0, text: '长 江', color: '#4488cc66', size: 18 },
+    { x: -300, y: -250, z: 10, text: '乌林（曹军）', color: '#4477dd88', size: 12 },
+    { x: 100, y: 250, z: 10, text: '赤壁（联军）', color: '#dd444488', size: 12 },
+    { x: -200, y: 0, z: 25, text: '⚔ 主战场', color: '#ffd70088', size: 11 },
+  ];
+  
+  // Phase-specific labels
+  if (sim.phase >= 5) {
+    labels.push({ x: 500, y: -350, z: 10, text: '华容道', color: '#ff8c0088', size: 13 });
+  }
+  
+  for (const lb of labels) {
+    const [sx, sy] = ISO.project(lb.x, lb.y, lb.z);
+    ctx.font = `${lb.size * ISO.scale * 0.1}px 'Microsoft YaHei'`;
+    ctx.fillStyle = lb.color;
+    ctx.textAlign = 'center';
+    ctx.fillText(lb.text, sx, sy);
+  }
+}
+
+// Compass rose
+function drawCompass() {
+  const cx = 80, cy = H - 130, r = 30;
+  ctx.globalAlpha = 0.4;
+  
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // N arrow (points up-right in isometric)
+  const nAngle = -Math.PI / 4;
+  ctx.fillStyle = '#ff4500';
+  ctx.beginPath();
+  ctx.moveTo(cx + Math.cos(nAngle) * r * 1.3, cy + Math.sin(nAngle) * r * 1.3);
+  ctx.lineTo(cx + Math.cos(nAngle + 0.3) * r * 0.3, cy + Math.sin(nAngle + 0.3) * r * 0.3);
+  ctx.lineTo(cx + Math.cos(nAngle - 0.3) * r * 0.3, cy + Math.sin(nAngle - 0.3) * r * 0.3);
+  ctx.fill();
+  
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillStyle = '#ffd700';
+  ctx.textAlign = 'center';
+  ctx.fillText('N', cx + Math.cos(nAngle) * (r + 12), cy + Math.sin(nAngle) * (r + 12) + 4);
+  ctx.fillText('S', cx - Math.cos(nAngle) * (r + 12), cy - Math.sin(nAngle) * (r + 12) + 4);
+  ctx.fillText('E', cx + Math.cos(nAngle + Math.PI/2) * (r + 10), cy + Math.sin(nAngle + Math.PI/2) * (r + 10) + 4);
+  ctx.fillText('W', cx - Math.cos(nAngle + Math.PI/2) * (r + 10), cy - Math.sin(nAngle + Math.PI/2) * (r + 10) + 4);
+  
+  ctx.globalAlpha = 1;
+}
+
+// ============================================================
+//  SIMULATION UPDATE
+// ============================================================
+function updateSimulation(dt) {
+  if (!sim.playing) return;
+  
+  const totalDuration = PHASES.reduce((s, p) => s + p.duration, 0);
+  const speedMs = sim.speed;
+  const increment = (dt * speedMs) / totalDuration;
+  
+  sim.time = Math.min(1, sim.time + increment);
+  sim.phaseTime += dt * speedMs;
+  
+  // Determine current phase
+  let accum = 0;
+  for (let i = 0; i < PHASES.length; i++) {
+    accum += PHASES[i].duration;
+    if (sim.time * totalDuration <= accum) {
+      if (sim.phase !== i) {
+        sim.phase = i;
+        updatePhaseUI();
+      }
+      break;
+    }
+  }
+  
+  // Update wind
+  updateWind();
+  
+  // Update ships
+  updateShips(dt);
+  
+  // Update fire ships
+  updateFireShips(dt);
+  
+  // Update particles
+  updateWindParticles(dt);
+  updateFireParticles(dt);
+  
+  // Spawn fire particles from burning ships
+  for (const s of ships) {
+    if (s.onFire && Math.random() < 0.3) {
+      spawnFireParticles(s.x, s.y, 1, s.w);
+    }
+  }
+}
+
+function updateWind() {
+  const phase = sim.phase;
+  
+  if (phase <= 2) {
+    // Northwest wind (normal winter)
+    windAngle = -Math.PI * 0.75;
+    windStrength = 0.3;
+  } else if (phase === 3) {
+    // Wind shifts to southeast!
+    const shift = Math.min(1, (sim.time - 0.35) * 8);
+    windAngle = lerpAngle(-Math.PI * 0.75, Math.PI * 0.25, shift);
+    windStrength = 0.3 + shift * 0.5;
+  } else if (phase === 4) {
+    // Strong southeast wind
+    windAngle = Math.PI * 0.25;
+    windStrength = 0.8 + Math.sin(Date.now() * 0.003) * 0.15;
+  } else {
+    windStrength = Math.max(0, windStrength - 0.005);
+  }
+}
+
+function lerpAngle(a, b, t) {
+  let diff = b - a;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return a + diff * t;
+}
+
+function updateShips(dt) {
+  const phase = sim.phase;
+  const t = sim.time;
+  
+  // Chain ships in phase 1+
+  if (phase >= 1) {
+    for (const s of ships) {
+      if (s.team === 'cao') {
+        s.locked = true;
+      }
+    }
+  }
+  
+  // Start fires in phase 4
+  if (phase >= 4) {
+    const fireSpread = Math.min(1, (t - 0.6) * 5);
+    let fireIdx = 0;
+    for (const s of ships) {
+      if (s.team === 'cao') {
+        if (fireIdx / 30 < fireSpread) {
+          if (!s.onFire) {
+            s.onFire = true;
+            s.fireTime = 0;
+          }
+          s.fireTime += dt * 0.001;
+        }
+        fireIdx++;
+      }
+    }
+  }
+  
+  // Ships start sinking in late phase 4
+  if (phase >= 4) {
+    const sinkStart = Math.min(1, (t - 0.7) * 4);
+    let idx = 0;
+    for (const s of ships) {
+      if (s.team === 'cao' && s.onFire) {
+        if (idx / 30 < sinkStart * 0.7) {
+          s.sinking = true;
+          s.sinkTime = Math.min(1, s.sinkTime + dt * 0.0003);
+        }
+        idx++;
+      }
+    }
+  }
+  
+  // Allied ships advance in phase 5
+  if (phase === 5) {
+    const adv = Math.min(1, (t - 0.8) * 5);
+    for (const s of ships) {
+      if (s.team === 'ally') {
+        s.y += adv * dt * 0.02;
+        s.x += adv * dt * 0.01;
+      }
+    }
+  }
+}
+
+function updateFireShips(dt) {
+  const phase = sim.phase;
+  const t = sim.time;
+  
+  // Launch fire ships in phase 3
+  if (phase >= 3) {
+    const launchProgress = Math.min(1, (t - 0.45) * 5);
+    
+    for (let i = 0; i < fireShips.length; i++) {
+      const fs = fireShips[i];
+      const shipDelay = i * 0.05;
+      
+      if (launchProgress > shipDelay) {
+        fs.launched = true;
+        const p = Math.min(1, (launchProgress - shipDelay) * 1.5);
+        
+        // Move towards target with wind influence
+        const windPush = windStrength * Math.cos(windAngle) * p * 30;
+        const windPushY = windStrength * Math.sin(windAngle) * p * 15;
+        
+        fs.x = fs.startX + (fs.targetX - fs.startX) * p + windPush;
+        fs.y = fs.startY + (fs.targetY - fs.startY) * p + windPushY;
+        
+        fs.angle = Math.atan2(
+          fs.targetY - fs.startY + windPushY * 0.3,
+          fs.targetX - fs.startX + windPush * 0.3
+        );
+      }
+    }
+  }
+}
+
+function updateWindParticles(dt) {
+  for (const p of windParticles) {
+    if (windStrength > 0.05) {
+      p.x += Math.cos(windAngle) * windStrength * 3 * p.speed;
+      p.y += Math.sin(windAngle) * windStrength * 1.5 * p.speed;
+      p.alpha = Math.min(1, p.alpha + 0.02);
+    } else {
+      p.alpha = Math.max(0, p.alpha - 0.02);
+    }
+    
+    // Wrap around
+    if (p.x > 700) p.x = -700;
+    if (p.x < -700) p.x = 700;
+    if (p.y > 500) p.y = -500;
+    if (p.y < -500) p.y = 500;
+    
+    p.speed = 0.5 + Math.random() * 0.5;
+  }
+}
+
+// ============================================================
+//  UI MANAGEMENT
+// ============================================================
+function updatePhaseUI() {
+  const ph = PHASES[sim.phase];
+  document.getElementById('IT').textContent = ph.name;
+  document.getElementById('ID').textContent = ph.desc;
+  
+  // Update phase bar
+  document.querySelectorAll('#PH .ph').forEach((el, i) => {
+    el.classList.toggle('act', i === sim.phase);
+  });
+  
+  // Camera movement
+  cam.moveTo(ph.cam.x, ph.cam.y, ph.cam.zoom);
+}
+
+function buildPhaseBar() {
+  const container = document.getElementById('PH');
+  container.innerHTML = '';
+  
+  PHASES.forEach((ph, i) => {
+    const div = document.createElement('div');
+    div.className = 'ph' + (i === 0 ? ' act' : '');
+    div.innerHTML = `<div class="pn">${ph.name}</div><div class="pt">${ph.time}</div>`;
+    div.onclick = () => {
+      // Jump to phase
+      let timeSum = 0;
+      for (let j = 0; j < i; j++) timeSum += PHASES[j].duration;
+      const total = PHASES.reduce((s, p) => s + p.duration, 0);
+      sim.time = timeSum / total;
+      sim.phase = i;
+      updatePhaseUI();
+    };
+    container.appendChild(div);
+  });
+}
+
+function updateTimeline() {
+  const tp = document.getElementById('TP');
+  const td = document.getElementById('TD');
+  const pct = sim.time * 100;
+  tp.style.width = pct + '%';
+  td.style.left = pct + '%';
+}
+
+function buildTimelineMarks() {
+  const container = document.getElementById('TM');
+  container.innerHTML = '';
+  let accum = 0;
+  const total = PHASES.reduce((s, p) => s + p.duration, 0);
+  
+  PHASES.forEach((ph, i) => {
+    accum += ph.duration;
+    const pct = accum / total * 100;
+    const span = document.createElement('span');
+    span.style.left = pct + '%';
+    span.textContent = (i + 1);
+    container.appendChild(span);
+  });
+}
+
+// ============================================================
+//  MAIN RENDER LOOP
+// ============================================================
+let lastTime = 0;
+
+function render(timestamp) {
+  const dt = Math.min(50, timestamp - lastTime);
+  lastTime = timestamp;
+  
+  // Clear
+  ctx.fillStyle = '#080c14';
+  ctx.fillRect(0, 0, W, H);
+  
+  // Update camera
+  cam.update();
+  
+  // Update simulation
+  updateSimulation(dt);
+  
+  // Draw scene (back to front)
+  drawTerrain();
+  drawLabels();
+  drawChains();
+  drawArmies();
+  drawShips();
+  drawFireParticles();
+  drawWind();
+  drawCompass();
+  
+  // Vignette
+  const vig = ctx.createRadialGradient(W/2, H/2, W*0.3, W/2, H/2, W*0.75);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.5)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+  
+  // Update timeline
+  updateTimeline();
+  
+  requestAnimationFrame(render);
+}
+
+// ============================================================
+//  INITIALIZATION
+// ============================================================
+function init() {
+  buildPhaseBar();
+  buildTimelineMarks();
+  
+  // Loading animation
+  let loadProg = 0;
+  const fillEl = document.getElementById('LF');
+  
+  function loadTick() {
+    loadProg += 3 + Math.random() * 5;
+    if (loadProg >= 100) {
+      loadProg = 100;
+      fillEl.style.width = '100%';
+      setTimeout(() => {
+        document.getElementById('LD').classList.add('out');
+        sim.playing = true;
+        updatePhaseUI();
+      }, 400);
+      return;
+    }
+    fillEl.style.width = loadProg + '%';
+    requestAnimationFrame(loadTick);
+  }
+  loadTick();
+  
+  requestAnimationFrame(render);
+}
+
+// Controls
+document.getElementById('BPLAY').addEventListener('click', function() {
+  sim.playing = !sim.playing;
+  this.textContent = sim.playing ? '⏸' : '▶';
+});
+
+document.getElementById('BPREV').addEventListener('click', () => {
+  sim.phase = Math.max(0, sim.phase - 1);
+  let t = 0;
+  for (let i = 0; i < sim.phase; i++) t += PHASES[i].duration;
+  const total = PHASES.reduce((s, p) => s + p.duration, 0);
+  sim.time = t / total;
+  updatePhaseUI();
+});
+
+document.getElementById('BNEXT').addEventListener('click', () => {
+  sim.phase = Math.min(PHASES.length - 1, sim.phase + 1);
+  let t = 0;
+  for (let i = 0; i <= sim.phase; i++) t += PHASES[i].duration;
+  const total = PHASES.reduce((s, p) => s + p.duration, 0);
+  sim.time = t / total;
+  updatePhaseUI();
+});
+
+document.querySelectorAll('.spd button').forEach(btn => {
+  btn.addEventListener('click', function() {
+    sim.speed = parseFloat(this.dataset.s);
+    document.querySelectorAll('.spd button').forEach(b => b.classList.remove('a'));
+    this.classList.add('a');
+  });
+});
+
+// Timeline click
+document.getElementById('TL').addEventListener('click', function(e) {
+  const rect = this.getBoundingClientRect();
+  sim.time = (e.clientX - rect.left) / rect.width;
+  
+  // Recalculate phase
+  const total = PHASES.reduce((s, p) => s + p.duration, 0);
+  let accum = 0;
+  for (let i = 0; i < PHASES.length; i++) {
+    accum += PHASES[i].duration;
+    if (sim.time * total <= accum) {
+      sim.phase = i;
+      updatePhaseUI();
+      break;
+    }
+  }
+});
+
+init();
+</script>
+</body>
+</html>

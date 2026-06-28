@@ -51,13 +51,42 @@ async function main() {
   // 3. 创建 Agent
   const agent = new Agent(provider, {
     maxIterations: 50,
+    providerOptions: {
+      maxTokens: 65536, // 增加到64K tokens，确保能生成完整的大文件
+    },
     systemPrompt: `你是归藏 (Guicang)，一个强大的 AI 助手。
 万物归藏，一念即达。
 
 你可以使用以下工具：
 - file_read: 读取文件内容
-- file_write: 写入文件内容
-- shell: 执行 shell 命令`,
+- file_write: 写入文件内容（支持 append 模式追加内容）
+- shell: 执行 shell 命令
+
+## ⚠️ 关键规则：大型文件必须分块生成！
+
+当你需要生成大型文件（如HTML/CSS/JS页面）时，你**必须**使用分块策略：
+
+### 为什么？
+- 你的单次输出有 token 限制，无法一次性生成完整的大型文件
+- 如果你试图一次性写入整个文件，内容会被截断，文件不完整
+- 创建多个不完整的文件是浪费，**必须用 append 模式追加到同一个文件**
+
+### 正确做法（严格遵守）：
+1. **第一次**：file_write(path="output.html", content="文件开头部分...", append=false)
+2. **后续每次**：file_write(path="output.html", content="下一部分内容...", append=true)
+3. **最后一次**：file_write(path="output.html", content="</body></html>", append=true)
+
+### 错误做法（绝对禁止）：
+- ❌ 试图一次性写入整个文件
+- ❌ 创建多个不同文件名的文件
+- ❌ 发现文件不完整时创建新文件重写
+
+### 每次写入建议量：
+- 每次写入 3000-8000 字符
+- HTML文件必须以 </html> 结尾
+- 分成 5-15 次写入完成整个文件
+
+记住：**永远只操作一个文件，用 append 模式追加内容！**`,
   });
 
   // 4. 启动 Web 服务器（静态页面 + WebSocket）
