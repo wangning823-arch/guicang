@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤壁之战 · 3D 俯瞰战术演示</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080810;overflow:hidden;font-family:'Microsoft YaHei','SimHei',sans-serif;color:#fff}
+canvas{display:block;position:fixed;top:0;left:0}
+#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+.ht{position:absolute;top:0;left:0;width:100%;text-align:center;padding:16px 0;background:linear-gradient(180deg,rgba(0,0,0,.92) 0%,rgba(0,0,0,.3) 60%,transparent 100%)}
+.ht h1{font-size:34px;color:#ffd700;letter-spacing:10px;text-shadow:0 0 30px rgba(255,165,0,.7),0 0 60px rgba(255,69,0,.3)}
+.ht .sub{font-size:12px;color:#888;margin-top:5px;letter-spacing:3px}
+#ptag{position:absolute;top:95px;left:50%;transform:translateX(-50%);font-size:20px;color:#ff6347;letter-spacing:4px;text-shadow:0 0 15px rgba(255,50,0,.6);opacity:0;transition:opacity .8s}
+#ptag.on{opacity:1}
+#ipan{position:absolute;bottom:95px;left:24px;background:rgba(0,0,0,.8);border:1px solid rgba(255,215,0,.25);border-radius:12px;padding:16px 20px;max-width:420px;backdrop-filter:blur(10px)}
+#ipan .ev{font-size:14px;line-height:1.8;color:#ddd}
+#ipan .ev b{color:#ffd700}
+#ipan .ev em{color:#ff6347;font-style:normal}
+#prog{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);width:min(58%,620px)}
+#ptrk{width:100%;height:3px;background:rgba(255,255,255,.12);border-radius:2px}
+#pfill{height:100%;width:0%;background:linear-gradient(90deg,#ff4500,#ff8c00,#ffd700);border-radius:2px;transition:width .2s linear}
+#plbl{display:flex;justify-content:space-between;margin-top:5px;font-size:9px;color:#666;letter-spacing:1px}
+#btns{position:absolute;bottom:82px;right:24px;display:flex;gap:8px;pointer-events:auto}
+#btns button{background:rgba(30,30,30,.85);border:1px solid rgba(255,215,0,.4);color:#ffd700;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s}
+#btns button:hover{background:rgba(80,60,10,.9);border-color:#ffd700}
+#btns button.active{background:rgba(255,100,0,.3);border-color:#ff6347}
+#legend{position:absolute;top:100px;right:24px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:12px 16px;font-size:11px;line-height:2}
+#legend .c{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.wind-info{position:absolute;top:100px;left:24px;background:rgba(0,0,0,.7);border:1px solid rgba(100,200,255,.3);border-radius:10px;padding:12px 16px;font-size:11px;line-height:2}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div class="ht"><h1>赤 壁 之 战</h1><div class="sub">公元208年 · 3D俯瞰战术全景演示</div></div>
+  <div id="ptag"></div>
+  <div id="ipan"><div class="ev" id="evtxt">准备开始...</div></div>
+  <div id="prog"><div id="ptrk"><div id="pfill"></div></div><div id="plbl"><span>对峙</span><span>备战</span><span>火攻</span><span>决战</span><span>追击</span></div></div>
+  <div id="btns">
+    <button id="bplay" class="active">▶ 播放</button>
+    <button id="bpause">⏸ 暂停</button>
+    <button id="bfast">⏩ 加速</button>
+  </div>
+  <div id="legend">
+    <div><span class="c" style="background:#ff4444"></span>曹操军 (北)</div>
+    <div><span class="c" style="background:#4488ff"></span>孙刘联军 (南)</div>
+    <div><span class="c" style="background:#ff8800"></span>火船 / 火势</div>
+    <div><span class="c" style="background:#00ddaa"></span>东南风向</div>
+    <div><span class="c" style="background:#ffff00"></span>行军路线</div>
+  </div>
+  <div class="wind-info">
+    <div>🌬 <span id="windtxt">风向：东南风</span></div>
+    <div>🌊 <span id="windstr">风力：微弱</span></div>
+  </div>
+</div>
+
+<script>
+// ============ SETUP ============
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ============ STATE ============
+let playing = true, speed = 1, time = 0, lastT = 0;
+const TOTAL = 90; // total seconds
+let cameraAngle = 0, cameraDist = 700, cameraHeight = 500;
+let cameraTarget = { x: 0, y: 0 };
+let manualCam = false;
+
+// ============ COLORS ============
+const COL = {
+  water: '#0a2a4a', waterLight: '#0d3a5a',
+  landN: '#2a3a1a', landS: '#1a2a10',
+  cao: '#ff4444', sun: '#4488ff',
+  fire: '#ff6600', fireGlow: '#ff3300',
+  wind: '#00ddaa', path: '#ffff00',
+  ship: '#8B4513', shipCao: '#661111',
+};
+
+// ============ EVENTS ============
+const events = [
+  { t: 0, phase: '第一幕：两军对峙', text: '<b>建安十三年（208年）</b><br>曹操率八十万大军南下，沿长江北岸扎营。<br><em>孙刘联军于南岸赤壁一带集结，隔江对峙。</em>' },
+  { t: 12, phase: '第二幕：连环锁船', text: '曹操将战船用铁链首尾相连，<b>以求平稳渡江</b>。<br>庞统献连环计，周瑜黄盖定下火攻之策。<br><em>黄盖诈降，备好干柴、膏油、硫磺。</em>' },
+  { t: 24, phase: '第三幕：东南风起', text: '<b>冬至之夜，东南风骤起！</b><br>诸葛亮借东风之传说，实为气象预判。<em>风助火势，天时已到。</em>' },
+  { t: 38, phase: '第四幕：火船突入', text: '黄盖率<b>数十艘蒙冲斗舰</b>，满载薪草膏油，<br>插上旌旗，趁夜驶向曹营。<em>接近时点火，火船直冲连环船阵！</em>' },
+  { t: 52, phase: '第五幕：火烧连营', text: '🔥 <b>火烧赤壁！</b> 东南风助火势蔓延，<br>铁链锁住的战船无法散开。<em>曹军水寨、岸上营寨尽成火海，死伤无数。</em>' },
+  { t: 68, phase: '第六幕：曹操败走', text: '曹操从<b>华容道</b>败走，仅余少数骑兵随行。<br>关羽义释曹操的传说流传千古。<em>此战奠定了三国鼎立的格局。</em>' },
+];
+
+// ============ 3D PROJECTION ============
+function project(x, y, z) {
+  const cos = Math.cos(cameraAngle), sin = Math.sin(cameraAngle);
+  const dx = x - cameraTarget.x, dz = z - cameraTarget.y;
+  const rx = dx * cos + dz * sin;
+  const rz = -dx * sin + dz * cos;
+  const scale = cameraHeight / (cameraHeight + rz + cameraDist * 0.5);
+  return { x: W / 2 + rx * scale * 0.9, y: H / 2 + (y - cameraHeight * 0.3) * scale * 0.7, s: scale, z: rz };
+}
+
+// ============ DRAW HELPERS ============
+function fillPoly(pts, color, alpha = 1) {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawLine(p1, p2, color, width = 1) {
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke();
+}
+
+function drawText(text, x, y, color, size = 12, align = 'center') {
+  ctx.fillStyle = color;
+  ctx.font = `${size}px 'Microsoft YaHei', sans-serif`;
+  ctx.textAlign = align;
+  ctx.fillText(text, x, y);
+}
+
+function drawCircle(x, y, r, color, alpha = 1) {
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+// ============ TERRAIN ============
+function drawTerrain() {
+  // Water - Yangtze River
+  const waterPts = [
+    project(-600, 0, -100), project(600, 0, -100),
+    project(600, 0, 100), project(-600, 0, 100)
+  ];
+  fillPoly(waterPts, COL.water);
+
+  // Water shimmer
+  for (let i = 0; i < 30; i++) {
+    const wx = -500 + Math.random() * 1000;
+    const wz = -80 + Math.random() * 160;
+    const ws = project(wx, 0, wz);
+    const shimmer = 0.15 + 0.1 * Math.sin(time * 2 + wx * 0.01);
+    drawCircle(ws.x, ws.y, 1 + ws.s * 2, '#1a5a8a', shimmer);
+  }
+
+  // North bank (Cao)
+  const nBank = [
+    project(-600, 0, -300), project(600, 0, -300),
+    project(600, 0, -100), project(-600, 0, -100)
+  ];
+  fillPoly(nBank, COL.landN);
+
+  // Mountains north
+  for (let mx = -400; mx < 400; mx += 80) {
+    const mh = 40 + Math.sin(mx * 0.02) * 20;
+    const base1 = project(mx - 30, 0, -280);
+    const peak = project(mx, mh, -320);
+    const base2 = project(mx + 30, 0, -280);
+    fillPoly([base1, peak, base2], '#1a2a10');
+  }
+
+  // South bank (Sun-Liu)
+  const sBank = [
+    project(-600, 0, 100), project(600, 0, 100),
+    project(600, 0, 400), project(-600, 0, 400)
+  ];
+  fillPoly(sBank, COL.landS);
+
+  // Mountains south
+  for (let mx = -350; mx < 350; mx += 70) {
+    const mh = 50 + Math.cos(mx * 0.015) * 25;
+    const base1 = project(mx - 25, 0, 130);
+    const peak = project(mx, mh, 170);
+    const base2 = project(mx + 25, 0, 130);
+    fillPoly([base1, peak, base2], '#152010');
+  }
+}
+
+// ============ CAMPS & SHIPS ============
+function drawCamps() {
+  // Cao's camp (north)
+  const caoX = -50, caoZ = -200;
+  for (let i = -3; i <= 3; i++) {
+    const cx = caoX + i * 50;
+    const p = project(cx, 12, caoZ);
+    // Tent
+    ctx.beginPath();
+    ctx.moveTo(p.x - 12 * p.s, p.y + 6 * p.s);
+    ctx.lineTo(p.x, p.y - 8 * p.s);
+    ctx.lineTo(p.x + 12 * p.s, p.y + 6 * p.s);
+    ctx.closePath();
+    ctx.fillStyle = COL.cao;
+    ctx.globalAlpha = 0.7;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  const cp = project(caoX, 20, caoZ - 20);
+  drawText('曹 操 大 营', cp.x, cp.y - 20, '#ff6664', 13);
+
+  // Cao's fleet (north bank of river)
+  const shipStartPhase = 12;
+  if (time > shipStartPhase) {
+    const shipAlpha = Math.min(1, (time - shipStartPhase) / 8);
+    for (let i = -5; i <= 5; i++) {
+      const sx = i * 40;
+      const sp = project(sx, 4, -80);
+      ctx.globalAlpha = shipAlpha;
+      // Ship body
+      ctx.fillStyle = COL.shipCao;
+      ctx.fillRect(sp.x - 10 * sp.s, sp.y - 3 * sp.s, 20 * sp.s, 6 * sp.s);
+      // Mast
+      ctx.strokeStyle = '#aa6633';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sp.x, sp.y - 3 * sp.s);
+      ctx.lineTo(sp.x, sp.y - 14 * sp.s);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    // Linked ships indicator
+    if (time > 16) {
+      const lp = project(0, 3, -80);
+      drawText('🔗 连环船阵', lp.x, lp.y - 22, '#ff8866', 11);
+    }
+  }
+
+  // Sun-Liu camp (south)
+  const sunX = -30, sunZ = 180;
+  for (let i = -2; i <= 2; i++) {
+    const cx = sunX + i * 55;
+    const p = project(cx, 10, sunZ);
+    ctx.beginPath();
+    ctx.moveTo(p.x - 10 * p.s, p.y + 5 * p.s);
+    ctx.lineTo(p.x, p.y - 7 * p.s);
+    ctx.lineTo(p.x + 10 * p.s, p.y + 5 * p.s);
+    ctx.closePath();
+    ctx.fillStyle = COL.sun;
+    ctx.globalAlpha = 0.7;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  const sp = project(sunX, 18, sunZ + 15);
+  drawText('孙刘联军大营', sp.x, sp.y - 18, '#66aaff', 13);
+
+  // Sun-Liu fleet (south bank)
+  for (let i = -3; i <= 3; i++) {
+    const sx = i * 45 + 20;
+    const sy = project(sx, 4, 90);
+    ctx.fillStyle = '#224488';
+    ctx.fillRect(sy.x - 8 * sy.s, sy.y - 3 * sy.s, 16 * sy.s, 5 * sy.s);
+    ctx.strokeStyle = '#446699';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sy.x, sy.y - 3 * sy.s);
+    ctx.lineTo(sy.x, sy.y - 12 * sy.s);
+    ctx.stroke();
+  }
+}
+
+// ============ ARROWS & PATHS ============
+function drawPaths() {
+  // Cao's march route
+  const caoMarch = [
+    { x: -300, z: -400, t: 0 }, { x: -150, z: -350, t: 3 },
+    { x: 0, z: -300, t: 6 }, { x: 50, z: -200, t: 10 },
+  ];
+  ctx.setLineDash([6, 4]);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = COL.cao;
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  caoMarch.forEach((pt, i) => {
+    const p = project(pt.x, 2, pt.z);
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  });
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+
+  // Arrow at end
+  if (time > 0) {
+    const lastPt = caoMarch[caoMarch.length - 1];
+    const ap = project(lastPt.x + 20, 5, lastPt.z);
+    drawText('→', ap.x, ap.y, COL.cao, 20);
+    drawText('曹操南下', ap.x + 20, ap.y, '#ff8866', 11);
+  }
+
+  // Sun-Liu route
+  const sunMarch = [
+    { x: 200, z: 350, t: 0 }, { x: 100, z: 250, t: 2 },
+    { x: -10, z: 200, t: 5 },
+  ];
+  ctx.setLineDash([6, 4]);
+  ctx.strokeStyle = COL.sun;
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  sunMarch.forEach((pt, i) => {
+    const p = project(pt.x, 2, pt.z);
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  });
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+
+  const sLast = sunMarch[sunMarch.length - 1];
+  const sap = project(sLast.x - 15, 5, sLast.z);
+  drawText('← 孙刘集结', sap.x - 30, sap.y, '#66aaff', 11);
+}
+
+// ============ WIND PARTICLES ============
+const windParticles = [];
+for (let i = 0; i < 120; i++) {
+  windParticles.push({
+    x: Math.random() * 800 - 400,
+    z: Math.random() * 400 - 100,
+    vx: 0.5 + Math.random() * 1.5,
+    vy: 0.2 + Math.random() * 0.5,
+    life: Math.random(),
+  });
+}
+
+function drawWind() {
+  const windStart = 24;
+  const windStr = time > windStart ? Math.min(1, (time - windStart) / 12) : 0;
+  if (windStr <= 0) return;
+
+  const windtxt = document.getElementById('windtxt');
+  const windstr = document.getElementById('windstr');
+  if (windStr < 0.3) { windtxt.textContent = '风向：微风'; windstr.textContent = '风力：微弱'; }
+  else if (windStr < 0.7) { windtxt.textContent = '风向：东南风 ↘'; windstr.textContent = '风力：渐强'; }
+  else { windtxt.textContent = '风向：东南风 ↘'; windstr.textContent = '风力：大风！'; }
+
+  windParticles.forEach(wp => {
+    wp.x += wp.vx * windStr * 1.5;
+    wp.z -= wp.vy * windStr;
+    wp.life -= 0.005;
+    if (wp.life <= 0 || wp.x > 400 || wp.z < -200) {
+      wp.x = -400 + Math.random() * 200;
+      wp.z = 200 + Math.random() * 100;
+      wp.life = 1;
+    }
+    const pp = project(wp.x, 15 + Math.sin(time + wp.x) * 5, wp.z);
+    const alpha = wp.life * windStr * 0.6;
+    // Wind particle as arrow
+    ctx.save();
+    ctx.translate(pp.x, pp.y);
+    ctx.rotate(-0.4);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = COL.wind;
+    ctx.beginPath();
+    ctx.moveTo(-4, 0); ctx.lineTo(4, 0); ctx.lineTo(2, -2); ctx.lineTo(6, 0); ctx.lineTo(2, 2); ctx.lineTo(4, 0);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  });
+
+  // Wind direction label
+  const wLabel = project(300, 25, 250);
+  drawText('🌬 东南风 →', wLabel.x, wLabel.y, COL.wind, 12);
+}
+
+// ============ FIRE SHIPS & FIRE ============
+const fireParticles = [];
+let fireShips = [];
+let fireActive = false;
+
+function initFireShips() {
+  fireShips = [];
+  for (let i = 0; i < 8; i++) {
+    fireShips.push({
+      x: -100 + i * 30 + Math.random() * 10,
+      z: 85,
+      speed: 0.8 + Math.random() * 0.5,
+      burning: false,
+    });
+  }
+}
+
+function drawFireShips() {
+  const fireStart = 38;
+  if (time < fireStart) return;
+  if (!fireActive && time >= fireStart) { fireActive = true; initFireShips(); }
+
+  const fireProgress = Math.min(1, (time - fireStart) / 12);
+
+  fireShips.forEach(fs => {
+    if (time > fireStart + 3) {
+      fs.burning = true;
+      fs.z -= fs.speed;
+      fs.x += 1.5; // drift with wind
+    }
+
+    const p = project(fs.x, 5, fs.z);
+
+    // Ship
+    ctx.fillStyle = fs.burning ? '#8B2500' : '#664422';
+    ctx.fillRect(p.x - 8 * p.s, p.y - 3 * p.s, 16 * p.s, 5 * p.s);
+
+    if (fs.burning) {
+      // Fire glow
+      drawCircle(p.x, p.y - 10 * p.s, 18 * p.s, '#ff3300', 0.2 + Math.random() * 0.1);
+      drawCircle(p.x, p.y - 8 * p.s, 10 * p.s, '#ff6600', 0.5 + Math.random() * 0.2);
+      drawCircle(p.x, p.y - 6 * p.s, 5 * p.s, '#ffcc00', 0.8);
+
+      // Emit fire particles
+      for (let j = 0; j < 2; j++) {
+        fireParticles.push({
+          x: fs.x + Math.random() * 20 - 10,
+          y: 5 + Math.random() * 10,
+          z: fs.z + Math.random() * 10 - 5,
+          vx: 1 + Math.random(),
+          vy: 2 + Math.random() * 2,
+          life: 1,
+          size: 3 + Math.random() * 4,
+        });
+      }
+    }
+  });
+
+  // Label
+  if (fireProgress < 0.8) {
+    const fp = project(-80, 10, 80);
+    drawText('🔥 黄盖火船', fp.x, fp.y - 15, '#ff8800', 12);
+  }
+}
+
+// ============ FIRE SPREAD ============
+function drawFireSpread() {
+  const burnStart = 50;
+  if (time < burnStart) return;
+
+  const burnProgress = Math.min(1, (time - burnStart) / 18);
+
+  // Burning ships on north bank
+  const numBurn = Math.floor(burnProgress * 20);
+  for (let i = 0; i < numBurn; i++) {
+    const bx = -120 + i * 12 + Math.sin(time * 3 + i) * 3;
+    const bz = -85 + Math.sin(i * 2.5) * 15;
+    const bp = project(bx, 5, bz);
+
+    // Fire
+    const flicker = 0.5 + 0.3 * Math.sin(time * 8 + i * 3);
+    drawCircle(bp.x, bp.y - 12 * bp.s, (10 + Math.random() * 6) * bp.s, '#ff3300', flicker * 0.4);
+    drawCircle(bp.x, bp.y - 8 * bp.s, (6 + Math.random() * 4) * bp.s, '#ff6600', flicker * 0.6);
+    drawCircle(bp.x, bp.y - 5 * bp.s, (3 + Math.random() * 3) * bp.s, '#ffcc00', flicker * 0.8);
+
+    // Emit particles
+    if (Math.random() < 0.3) {
+      fireParticles.push({
+        x: bx + Math.random() * 30 - 15,
+        y: 5 + Math.random() * 8,
+        z: bz,
+        vx: 1.5 + Math.random(),
+        vy: 3 + Math.random() * 2,
+        life: 1,
+        size: 2 + Math.random() * 5,
+      });
+    }
+  }
+
+  // Fire on land (later)
+  if (burnProgress > 0.5) {
+    const landFire = Math.floor((burnProgress - 0.5) * 20);
+    for (let i = 0; i < landFire; i++) {
+      const fx = -80 + i * 20;
+      const fz = -150 - Math.random() * 50;
+      const fp = project(fx, 3, fz);
+      const fl = 0.3 + 0.3 * Math.sin(time * 6 + i * 5);
+      drawCircle(fp.x, fp.y - 8 * fp.s, (8 + Math.random() * 5) * fp.s, '#ff2200', fl * 0.35);
+      drawCircle(fp.x, fp.y - 5 * fp.s, (4 + Math.random() * 3) * fp.s, '#ff8800', fl * 0.5);
+    }
+  }
+
+  // Fire spread label
+  if (burnProgress > 0.3 && burnProgress < 0.9) {
+    const flp = project(0, 30, -100);
+    drawText('🔥🔥🔥', flp.x, flp.y - 20, '#ff4400', 18);
+  }
+}
+
+// ============ FIRE PARTICLES ============
+function updateFireParticles(dt) {
+  for (let i = fireParticles.length - 1; i >= 0; i--) {
+    const fp = fireParticles[i];
+    fp.x += fp.vx * dt * 30;
+    fp.y += fp.vy * dt * 15;
+    fp.life -= dt * 1.5;
+    fp.size *= 0.995;
+    if (fp.life <= 0 || fp.size < 0.5) {
+      fireParticles.splice(i, 1);
+      continue;
+    }
+    const pp = project(fp.x, fp.y, fp.z);
+    const colors = ['#ffcc00', '#ff8800', '#ff4400', '#ff2200'];
+    const ci = Math.floor(Math.random() * colors.length);
+    drawCircle(pp.x, pp.y, fp.size * pp.s, colors[ci], fp.life * 0.7);
+  }
+}
+
+// ============ CAO RETREAT ============
+function drawRetreat() {
+  const retreatStart = 68;
+  if (time < retreatStart) return;
+
+  const rp = Math.min(1, (time - retreatStart) / 18);
+
+  // Retreat path
+  const retreatPath = [
+    { x: 0, z: -200 }, { x: 80, z: -250 },
+    { x: 150, z: -300 }, { x: 200, z: -350 },
+    { x: 280, z: -380 },
+  ];
+
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#ff444488';
+  ctx.beginPath();
+  const pts = Math.floor(rp * retreatPath.length);
+  for (let i = 0; i <= pts && i < retreatPath.length; i++) {
+    const p = project(retreatPath[i].x, 2, retreatPath[i].z);
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Retreating units
+  const numUnits = Math.floor(rp * 6);
+  for (let i = 0; i < numUnits; i++) {
+    const progress = Math.max(0, rp - i * 0.08);
+    const idx = Math.min(Math.floor(progress * (retreatPath.length - 1)), retreatPath.length - 2);
+    const frac = (progress * (retreatPath.length - 1)) - idx;
+    const rx = retreatPath[idx].x + (retreatPath[idx + 1].x - retreatPath[idx].x) * frac;
+    const rz = retreatPath[idx].z + (retreatPath[idx + 1].z - retreatPath[idx].z) * frac;
+    const rpp = project(rx, 3, rz);
+    drawCircle(rpp.x, rpp.y, 3 * rpp.s, '#cc3333', 0.7);
+  }
+
+  // Label
+  const lastIdx = Math.min(Math.floor(rp * (retreatPath.length - 1)), retreatPath.length - 1);
+  const rl = project(retreatPath[lastIdx].x, 10, retreatPath[lastIdx].z);
+  drawText('⚔ 曹操败走华容道', rl.x, rl.y - 12, '#ff6644', 12);
+
+  // Guan Yu
+  if (rp > 0.6) {
+    const gxp = project(230, 8, -340);
+    drawText('关羽', gxp.x, gxp.y - 8, '#44ff44', 11);
+    drawCircle(gxp.x, gxp.y, 5, '#44ff44', 0.5);
+  }
+}
+
+// ============ LABELS ============
+function drawLabels() {
+  // Place names
+  const names = [
+    { text: '曹 营', x: -50, z: -220, color: '#ff6644', size: 14 },
+    { text: '联 军 营', x: -30, z: 200, color: '#66aaff', size: 14 },
+    { text: '长    江', x: 0, z: 0, color: '#336699', size: 16 },
+    { text: '乌林', x: -150, z: -180, color: '#888866', size: 11 },
+    { text: '赤壁', x: 100, z: 150, color: '#888866', size: 11 },
+    { text: '华容道', x: 280, z: -370, color: '#996644', size: 11 },
+  ];
+  names.forEach(n => {
+    const p = project(n.x, 2, n.z);
+    drawText(n.text, p.x, p.y, n.color, n.size);
+  });
+}
+
+// ============ CAMERA ============
+function updateCamera(dt) {
+  if (manualCam) return;
+
+  // Auto camera path
+  if (time < 12) {
+    // Wide establishing shot
+    cameraAngle += dt * 0.05;
+    cameraDist = 700;
+    cameraHeight = 500;
+  } else if (time < 24) {
+    // Zoom to ships
+    cameraAngle += dt * 0.03;
+    cameraDist = 500;
+    cameraHeight = 350;
+  } else if (time < 38) {
+    // Wind view - side angle
+    cameraAngle += dt * 0.04;
+    cameraDist = 600;
+    cameraHeight = 400;
+  } else if (time < 55) {
+    // Fire scene - dramatic angle
+    cameraAngle += dt * 0.06;
+    cameraDist = 550;
+    cameraHeight = 380;
+  } else if (time < 70) {
+    // Fire spread - wider
+    cameraAngle += dt * 0.04;
+    cameraDist = 650;
+    cameraHeight = 450;
+  } else {
+    // Retreat - follow north
+    cameraAngle += dt * 0.03;
+    cameraDist = 700;
+    cameraHeight = 500;
+  }
+}
+
+// ============ UI UPDATE ============
+function updateUI() {
+  // Progress bar
+  document.getElementById('pfill').style.width = (time / TOTAL * 100) + '%';
+
+  // Event text
+  let currentEvent = events[0];
+  for (let i = events.length - 1; i >= 0; i--) {
+    if (time >= events[i].t) { currentEvent = events[i]; break; }
+  }
+
+  const evDiv = document.getElementById('evtxt');
+  if (evDiv.innerHTML !== currentEvent.text) {
+    evDiv.innerHTML = currentEvent.text;
+  }
+
+  const ptag = document.getElementById('ptag');
+  if (ptag.textContent !== currentEvent.phase) {
+    ptag.textContent = currentEvent.phase;
+    ptag.classList.add('on');
+  }
+}
+
+// ============ MAIN LOOP ============
+function render(timestamp) {
+  if (!lastT) lastT = timestamp;
+  const dt = Math.min((timestamp - lastT) / 1000, 0.1);
+  lastT = timestamp;
+
+  if (playing) {
+    time += dt * speed;
+    if (time > TOTAL) time = 0;
+  }
+
+  updateCamera(dt);
+  updateFireParticles(dt);
+
+  // Clear
+  ctx.fillStyle = '#080810';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw scene
+  drawTerrain();
+  drawLabels();
+  drawPaths();
+  drawCamps();
+  drawWind();
+  drawFireShips();
+  drawFireSpread();
+  drawRetreat();
+  updateUI();
+
+  requestAnimationFrame(render);
+}
+
+// ============ CONTROLS ============
+document.getElementById('bplay').addEventListener('click', () => {
+  playing = true;
+  document.getElementById('bplay').classList.add('active');
+  document.getElementById('bpause').classList.remove('active');
+});
+document.getElementById('bpause').addEventListener('click', () => {
+  playing = false;
+  document.getElementById('bpause').classList.add('active');
+  document.getElementById('bplay').classList.remove('active');
+});
+document.getElementById('bfast').addEventListener('click', () => {
+  speed = speed >= 3 ? 1 : speed + 1;
+  document.getElementById('bfast').textContent = speed > 1 ? `⏩ ${speed}x` : '⏩ 加速';
+});
+
+// Mouse camera control
+let isDragging = false, lastMX = 0;
+canvas.addEventListener('mousedown', e => { isDragging = true; lastMX = e.clientX; manualCam = true; });
+canvas.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  cameraAngle += (e.clientX - lastMX) * 0.005;
+  lastMX = e.clientX;
+});
+canvas.addEventListener('mouseup', () => { isDragging = false; });
+canvas.addEventListener('wheel', e => {
+  cameraDist += e.deltaY * 0.5;
+  cameraDist = Math.max(300, Math.min(1200, cameraDist));
+  manualCam = true;
+});
+
+// Touch support
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    lastMX = e.touches[0].clientX;
+    manualCam = true;
+  }
+});
+canvas.addEventListener('touchmove', e => {
+  if (isDragging && e.touches.length === 1) {
+    cameraAngle += (e.touches[0].clientX - lastMX) * 0.005;
+    lastMX = e.touches[0].clientX;
+  }
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', () => { isDragging = false; });
+
+// Start
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

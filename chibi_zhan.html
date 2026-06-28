@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤壁之战 · 3D 俯瞰战术演示</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080810;overflow:hidden;font-family:'Microsoft YaHei','SimHei',sans-serif;color:#fff}
+canvas{display:block;position:fixed;top:0;left:0}
+#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+.hud-top{position:absolute;top:0;left:0;width:100%;text-align:center;padding:20px 0 30px;background:linear-gradient(180deg,rgba(0,0,0,.92) 0%,rgba(0,0,0,.4) 70%,transparent 100%)}
+.hud-top h1{font-size:34px;color:#ffd700;letter-spacing:10px;text-shadow:0 0 30px rgba(255,165,0,.7),0 0 60px rgba(255,69,0,.3)}
+.hud-top .sub{font-size:12px;color:#999;margin-top:6px;letter-spacing:3px}
+#phase-tag{position:absolute;top:100px;left:50%;transform:translateX(-50%);font-size:20px;color:#ff6347;letter-spacing:4px;text-shadow:0 0 15px rgba(255,50,0,.6);opacity:0;transition:opacity .8s}
+#phase-tag.show{opacity:1}
+#info-panel{position:absolute;bottom:100px;left:30px;background:rgba(0,0,0,.82);border:1px solid rgba(255,215,0,.25);border-radius:14px;padding:18px 22px;max-width:440px;backdrop-filter:blur(10px)}
+#info-panel .ev{font-size:15px;line-height:1.8;color:#ddd}
+#info-panel .ev b{color:#ffd700}
+#info-panel .ev em{color:#ff6347;font-style:normal}
+#progress{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);width:min(60%,650px)}
+#prog-track{width:100%;height:3px;background:rgba(255,255,255,.12);border-radius:2px}
+#prog-fill{height:100%;width:0%;background:linear-gradient(90deg,#ff4500,#ff8c00,#ffd700);border-radius:2px;transition:width .2s linear}
+#prog-labels{display:flex;justify-content:space-between;margin-top:5px;font-size:9px;color:#555;letter-spacing:1px}
+#btns{position:absolute;bottom:88px;right:30px;display:flex;gap:10px;pointer-events:auto}
+#btns button{background:rgba(20,20,30,.88);border:1px solid rgba(255,215,0,.35);color:#ffd700;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px;letter-spacing:2px;transition:all .2s}
+#btns button:hover{background:rgba(255,165,0,.2);border-color:#ffd700}
+#btns button.active{background:rgba(255,69,0,.25);border-color:#ff4500}
+#legend{position:absolute;top:110px;right:30px;background:rgba(0,0,0,.7);border-radius:10px;padding:14px 18px;font-size:12px;line-height:2;border:1px solid rgba(255,255,255,.08)}
+#legend .row{display:flex;align-items:center;gap:8px}
+#legend .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div class="hud-top"><h1>赤 壁 之 战</h1><div class="sub">建安十三年 · 孙刘联军破曹操八十万大军</div></div>
+  <div id="phase-tag"></div>
+  <div id="info-panel"><div class="ev" id="ev-text">准备演示……</div></div>
+  <div id="legend">
+    <div class="row"><div class="dot" style="background:#e63946"></div>曹操军</div>
+    <div class="row"><div class="dot" style="background:#2196f3"></div>孙刘联军</div>
+    <div class="row"><div class="dot" style="background:#ff8c00"></div>火攻</div>
+    <div class="row"><div class="dot" style="background:#00e676"></div>东南风</div>
+    <div class="row"><div class="dot" style="background:#ffd700"></div>行军路线</div>
+  </div>
+  <div id="btns">
+    <button id="btn-play" class="active">▶ 播放</button>
+    <button id="btn-pause">⏸ 暂停</button>
+    <button id="btn-reset">⏮ 重置</button>
+    <button id="btn-speed">1×</button>
+  </div>
+  <div id="progress">
+    <div id="prog-track"><div id="prog-fill"></div></div>
+    <div id="prog-labels"><span>两军对峙</span><span>火烧连环船</span><span>曹操败走</span></div>
+  </div>
+</div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}
+resize();window.addEventListener('resize',resize);
+
+// ==================== 常量 ====================
+const PI=Math.PI,TAU=PI*2;
+const cx=W/2, cy=H/2;
+
+// 地图坐标系（俯瞰，长江东西走向）
+const MAP={w:1600,h:900};
+function mx(x){return (x-MAP.w/2)*1+W/2}
+function my(y){return (y-MAP.h/2)*1+H/2}
+
+// ==================== 时间线 ====================
+const PHASES=[
+  {t:0,dur:5,name:'两军对峙',desc:'<b>建安十三年冬</b>，曹操率八十万大军南下，孙刘联军约五万驻守赤壁。曹操军多北方士卒，不习水战，将战船用铁链首尾相连，以求平稳。'},
+  {t:5,dur:6,name:'连环船阵',desc:'曹操采纳庞统献计，以<b>铁链锁船</b>，将战船连成一片。船上可驰马往来，如履平地。然而此阵虽稳，却埋下致命隐患——一旦起火，<em>船船相连，无处可逃</em>。'},
+  {t:11,dur:5,name:'黄盖诈降',desc:'东吴老将<b>黄盖</b>献苦肉计，假装投降曹操。率数十艘蒙冲斗舰，满载薪草膏油，外覆帷幕，上插旌旗，趁夜向曹营驶去。'},
+  {t:16,dur:7,name:'火烧连环船',desc:'距曹营二里时，黄盖下令<b>点火</b>！东南风大作，火船如箭冲入曹军船阵。<em>风助火势，火借风威</em>，顷刻间连环战船烈焰冲天，铁链锁死退路。'},
+  {t:23,dur:6,name:'火烧赤壁',desc:'大火从水面蔓延至岸上营寨。曹操大军<strong>人马烧溺死者无数</strong>。江面火光映红半壁天空，曹军彻底崩溃。'},
+  {t:29,dur:6,name:'曹操败走',desc:'曹操焚毁余船，率残军从<b>华容道</b>仓皇北逃。道路泥泞，死伤枕藉。此役曹操精锐尽失，三国鼎立之局面由此奠定。'}
+];
+const TOTAL_TIME=PHASES.reduce((s,p)=>s+p.dur,0);
+
+// ==================== 地形数据 ====================
+// 长江河道
+const RIVER={
+  points:[[-800,-30],[-600,-40],[-400,-25],[-200,-35],[0,-30],[200,-40],[400,-25],[600,-35],[800,-30]],
+  width:120
+};
+
+// 北岸（曹操驻地-乌林）
+const NORTH_BANK=[
+  {x:-700,y:-90},{x:-500,y:-100},{x:-300,y:-85},{x:-100,y:-95},
+  {x:100,y:-85},{x:300,y:-100},{x:500,y:-90},{x:700,y:-80}
+];
+
+// 南岸（孙刘联军-赤壁）
+const SOUTH_BANK=[
+  {x:-700,y:90},{x:-500,y:100},{x:-300,y:85},{x:-100,y:95},
+  {x:100,y:85},{x:300,y:100},{x:500,y:90},{x:700,y:80}
+];
+
+// ==================== 船只 ====================
+class Ship{
+  constructor(x,y,side,type){
+    this.x=x;this.y=y;this.side=side;
+    this.type=type||'normal';
+    this.angle=0;this.speed=0;this.targetX=null;this.targetY=null;
+    this.alive=true;this.burning=false;this.burnT=0;
+    this.length=type==='large'?24:14;
+    this.width=type==='large'?8:5;
+  }
+  moveTo(tx,ty,speed){
+    this.targetX=tx;this.targetY=ty;this.speed=speed||0.8;
+  }
+  update(dt){
+    if(!this.alive)return;
+    if(this.targetX!==null){
+      const dx=this.targetX-this.x,dy=this.targetY-this.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist>2){
+        this.x+=dx/dist*this.speed*dt*60;
+        this.y+=dy/dist*this.speed*dt*60;
+        this.angle=Math.atan2(dy,dx);
+      }else{
+        this.targetX=null;this.targetY=null;
+      }
+    }
+    if(this.burning){
+      this.burnT+=dt;
+      if(this.burnT>3)this.alive=false;
+    }
+  }
+  draw(ctx){
+    if(!this.alive)return;
+    ctx.save();
+    ctx.translate(this.x,this.y);
+    ctx.rotate(this.angle);
+    // 船体
+    const c=this.side==='cao'?'#8b2500':'#1a4a7a';
+    ctx.fillStyle=this.burning?`hsl(${20+Math.random()*20},100%,${40+Math.random()*20}%)`:c;
+    ctx.beginPath();
+    ctx.moveTo(this.length/2,0);
+    ctx.lineTo(-this.length/2,-this.width/2);
+    ctx.lineTo(-this.length/3,-this.width/2);
+    ctx.lineTo(-this.length/2,0);
+    ctx.lineTo(-this.length/3,this.width/2);
+    ctx.lineTo(-this.length/2,this.width/2);
+    ctx.closePath();
+    ctx.fill();
+    // 桅杆
+    if(this.type==='large'){
+      ctx.strokeStyle=this.burning?'#ff4500':'#654321';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-6);ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+// ==================== 粒子系统 ====================
+class Particle{
+  constructor(x,y,vx,vy,life,color,size){
+    this.x=x;this.y=y;this.vx=vx;this.vy=vy;
+    this.life=life;this.maxLife=life;
+    this.color=color;this.size=size||2;
+  }
+  update(dt){
+    this.x+=this.vx*dt*60;this.y+=this.vy*dt*60;
+    this.life-=dt;
+  }
+  draw(ctx){
+    const alpha=Math.max(0,this.life/this.maxLife);
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=this.color;
+    ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,TAU);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+
+// ==================== 风场粒子 ====================
+class WindParticle{
+  constructor(){
+    this.reset();
+  }
+  reset(){
+    this.x=mx(-800+Math.random()*200);
+    this.y=my(-60+Math.random()*120);
+    this.age=0;this.maxAge=3+Math.random()*3;
+    this.speed=1.5+Math.random()*2;
+  }
+  update(dt,windAngle){
+    this.x+=Math.cos(windAngle)*this.speed*dt*60;
+    this.y+=Math.sin(windAngle)*this.speed*dt*60;
+    this.age+=dt;
+    if(this.age>this.maxAge||this.x>mx(800)||this.x<mx(-800)||this.y<my(-80)||this.y>my(80)){
+      this.reset();
+    }
+  }
+  draw(ctx){
+    const alpha=Math.min(1,(1-this.age/this.maxAge)*0.6);
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle='#00e676';
+    ctx.beginPath();ctx.arc(this.x,this.y,2,0,TAU);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+
+// ==================== 火焰粒子 ====================
+class FireParticle{
+  constructor(x,y){
+    this.x=x+Math.random()*20-10;
+    this.y=y+Math.random()*10-5;
+    this.vx=Math.random()*2-1;
+    this.vy=-1-Math.random()*3;
+    this.life=0.5+Math.random()*1;
+    this.maxLife=this.life;
+    this.hue=20+Math.random()*30;
+  }
+  update(dt){
+    this.x+=this.vx*dt*60;this.y+=this.vy*dt*60;
+    this.life-=dt;this.vx*=0.98;
+  }
+  draw(ctx){
+    if(this.life<=0)return;
+    const a=this.life/this.maxLife;
+    ctx.globalAlpha=a*0.8;
+    ctx.fillStyle=`hsl(${this.hue},100%,${50+a*20}%)`;
+    ctx.beginPath();ctx.arc(this.x,this.y,2+a*3,0,TAU);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+
+// ==================== 烟雾粒子 ====================
+class SmokeParticle{
+  constructor(x,y){
+    this.x=x+Math.random()*30-15;
+    this.y=y+Math.random()*15-7;
+    this.vx=Math.random()*0.5-0.25;
+    this.vy=-0.5-Math.random()*1;
+    this.life=2+Math.random()*3;
+    this.maxLife=this.life;
+    this.size=4+Math.random()*8;
+  }
+  update(dt){
+    this.x+=this.vx*dt*60;this.y+=this.vy*dt*60;
+    this.life-=dt;this.size+=dt*3;
+  }
+  draw(ctx){
+    if(this.life<=0)return;
+    const a=this.life/this.maxLife*0.3;
+    ctx.globalAlpha=a;
+    ctx.fillStyle='#555';
+    ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,TAU);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+
+// ==================== 场景状态 ====================
+let gameTime=0;
+let speed=1;
+let playing=true;
+let windAngle=PI*1.25; // 西南风 → 向东北吹
+let firePhase=false;
+let fireStartT=16;
+let escapePhase=false;
+
+// 船只
+let caoShips=[];
+let sunShips=[];
+let huangGai=null;
+
+// 粒子
+let windParticles=[];
+let fireParticles=[];
+let smokeParticles=[];
+let firePoints=[]; // 起火点
+
+// 路径线
+const caoRoute=[{x:-650,y:0},{x:-400,y:-10},{x:-200,y:-5},{x:0,y:-10},{x:200,y:-15}];
+const sunRoute=[{x:0,y:120},{x:100,y:80},{x:200,y:30},{x:300,y:-10}];
+const huangRoute=[{x:-50,y:100},{x:50,y:30},{x:150,y:-15},{x:200,y:-20}];
+const escapeRoute=[{x:200,y:-20},{x:100,y:-120},{x:-100,y:-200},{x:-300,y:-300},{x:-500,y:-400}];
+
+// ==================== 初始化 ====================
+function init(){
+  gameTime=0;firePhase=false;escapePhase=false;
+  fireParticles=[];smokeParticles=[];firePoints=[];
+  caoShips=[];sunShips=[];windParticles=[];
+
+  // 曹操水军
+  for(let row=0;row<3;row++){
+    for(let col=0;col<8;col++){
+      const s=new Ship(mx(-450+col*80),my(-25+row*25),'cao',row===1?'large':'normal');
+      s.angle=0;
+      caoShips.push(s);
+    }
+  }
+
+  // 黄盖火船
+  huangGai=new Ship(mx(-50),my(100),'sun','large');
+  sunShips.push(huangGai);
+
+  // 孙刘联军
+  for(let i=0;i<12;i++){
+    const s=new Ship(mx(-100+i*15),my(110+Math.random()*30),'sun',i%3===0?'large':'normal');
+    sunShips.push(s);
+  }
+
+  // 风粒子
+  for(let i=0;i<60;i++){
+    windParticles.push(new WindParticle());
+  }
+}
+init();
+
+// ==================== 镜头 ====================
+let camX=0,camY=0,camZoom=1;
+let camTargetX=0,camTargetY=0,camTargetZoom=1;
+let camShake=0;
+
+function setCamera(x,y,z,dur){
+  camTargetX=x;camTargetY=y;camTargetZoom=z;
+}
+
+function updateCamera(dt){
+  const lerp=1-Math.pow(0.02,dt);
+  camX+=(camTargetX-camX)*lerp;
+  camY+=(camTargetY-camY)*lerp;
+  camZoom+=(camTargetZoom-camZoom)*lerp;
+  if(camShake>0){
+    camShake*=Math.pow(0.01,dt);
+    if(camShake<0.1)camShake=0;
+  }
+}
+
+// ==================== 事件系统 ====================
+function getCurrentPhase(){
+  let t=0;
+  for(const p of PHASES){
+    if(gameTime<t+p.dur)return p;
+    t+=p.dur;
+  }
+  return PHASES[PHASES.length-1];
+}
+
+let lastPhaseName='';
+function updatePhase(){
+  const p=getCurrentPhase();
+  if(p.name!==lastPhaseName){
+    lastPhaseName=p.name;
+    const tag=document.getElementById('phase-tag');
+    tag.textContent=p.name;
+    tag.classList.add('show');
+    setTimeout(()=>tag.classList.remove('show'),3000);
+    document.getElementById('ev-text').innerHTML=p.desc;
+  }
+}
+
+// ==================== 主逻辑更新 ====================
+function updateLogic(dt){
+  if(!playing)return;
+  gameTime+=dt*speed;
+  const t=gameTime;
+
+  // 相机
+  if(t<2){
+    setCamera(0,0,0.9);
+  }else if(t<5){
+    setCamera(0,-40,1.1);
+  }else if(t<8){
+    setCamera(50,-30,1.3);
+  }else if(t<11){
+    setCamera(-50,20,1.2);
+  }else if(t<14){
+    // 黄盖出发
+    setCamera(50,40,1.4);
+    huangGai.moveTo(mx(200),my(-15),1.2);
+    // 联军小队
+    sunShips.slice(1).forEach((s,i)=>{
+      if(i<4)s.moveTo(mx(150+i*40),my(50+i*10),0.6);
+    });
+  }else if(t<16){
+    setCamera(120,-10,1.6);
+    // 逼近
+    huangGai.moveTo(mx(210),my(-18),1.5);
+  }else if(t<19){
+    // 火攻开始
+    if(!firePhase){
+      firePhase=true;
+      camShake=8;
+      // 曹船连锁起火
+      caoShips.forEach((s,i)=>{
+        setTimeout(()=>{s.burning=true;},i*100);
+      });
+      // 火点
+      for(let i=0;i<8;i++){
+        firePoints.push({x:mx(-400+i*100),y:my(-10+Math.random()*20)});
+      }
+    }
+    setCamera(100,-15,1.4);
+    // 风向强化
+    windAngle=PI*1.2+Math.sin(t)*0.1;
+  }else if(t<23){
+    setCamera(80,-20,1.2);
+    windAngle=PI*1.15+Math.sin(t*0.5)*0.15;
+    // 火势扩大
+    if(firePoints.length<20){
+      if(Math.random()<0.1)firePoints.push({x:mx(-300+Math.random()*600),y:my(-30+Math.random()*60)});
+    }
+  }else if(t<26){
+    // 曹操败走
+    if(!escapePhase){
+      escapePhase=true;
+      camShake=12;
+    }
+    setCamera(-50,-80,1.1);
+    // 曹船逃散
+    caoShips.filter(s=>s.alive&&!s.burning).forEach((s,i)=>{
+      if(i<6)s.moveTo(mx(-200-i*60),my(-100-i*40),0.7);
+    });
+  }else{
+    setCamera(-200,-150,0.85);
+  }
+
+  updatePhase();
+
+  // 更新船
+  caoShips.forEach(s=>s.update(dt));
+  sunShips.forEach(s=>s.update(dt));
+
+  // 更新风粒子
+  windParticles.forEach(p=>p.update(dt,windAngle));
+
+  // 火焰和烟雾粒子
+  if(firePhase){
+    firePoints.forEach(fp=>{
+      if(Math.random()<0.3)fireParticles.push(new FireParticle(fp.x,fp.y));
+      if(Math.random()<0.1)smokeParticles.push(new SmokeParticle(fp.x,fp.y));
+    });
+  }
+  fireParticles.forEach(p=>p.update(dt));
+  smokeParticles.forEach(p=>p.update(dt));
+  fireParticles=fireParticles.filter(p=>p.life>0);
+  smokeParticles=smokeParticles.filter(p=>p.life>0);
+}
+
+// ==================== 渲染 ====================
+function drawWater(){
+  // 水面渐变
+  const grd=ctx.createLinearGradient(0,my(-80),0,my(80));
+  grd.addColorStop(0,'#1a3a5c');
+  grd.addColorStop(0.5,'#1e4d7b');
+  grd.addColorStop(1,'#1a3a5c');
+  ctx.fillStyle=grd;
+  ctx.fillRect(mx(-800),my(-80),mx(800)-mx(-800),my(80)-my(-80));
+
+  // 水波纹
+  ctx.strokeStyle='rgba(100,180,255,0.08)';
+  ctx.lineWidth=1;
+  const t=gameTime*2;
+  for(let i=0;i<15;i++){
+    const y=my(-65+i*9);
+    ctx.beginPath();
+    for(let x=mx(-800);x<=mx(800);x+=5){
+      const dy=Math.sin(x*0.02+t+i*0.5)*3;
+      if(x===mx(-800))ctx.moveTo(x,y+dy);
+      else ctx.lineTo(x,y+dy);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawBanks(){
+  // 北岸（曹操-乌林）
+  ctx.fillStyle='#2d1a0e';
+  ctx.beginPath();
+  ctx.moveTo(mx(-800),my(-80));
+  NORTH_BANK.forEach(p=>ctx.lineTo(mx(p.x),my(p.y)));
+  ctx.lineTo(mx(800),my(-80));
+  ctx.lineTo(mx(800),my(-300));
+  ctx.lineTo(mx(-800),my(-300));
+  ctx.closePath();
+  ctx.fill();
+
+  // 北岸山脉
+  ctx.fillStyle='#3d2a1a';
+  for(let i=0;i<6;i++){
+    const bx=mx(-500+i*180),by=my(-140-i*5%20);
+    drawMountain(bx,by,40+i%2*15);
+  }
+
+  // 南岸（孙刘-赤壁）
+  ctx.fillStyle='#1a2d1a';
+  ctx.beginPath();
+  ctx.moveTo(mx(-800),my(80));
+  SOUTH_BANK.forEach(p=>ctx.lineTo(mx(p.x),my(p.y)));
+  ctx.lineTo(mx(800),my(80));
+  ctx.lineTo(mx(800),my(300));
+  ctx.lineTo(mx(-800),my(300));
+  ctx.closePath();
+  ctx.fill();
+
+  // 南岸山脉
+  ctx.fillStyle='#2a3d1a';
+  for(let i=0;i<5;i++){
+    const bx=mx(-400+i*200),by=my(130+i*8%15);
+    drawMountain(bx,by,35+i%2*12);
+  }
+}
+
+function drawMountain(x,y,size){
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+  ctx.lineTo(x-size*0.7,y+size);
+  ctx.lineTo(x+size*0.7,y+size);
+  ctx.closePath();
+  ctx.fill();
+  // 雪顶
+  ctx.fillStyle='rgba(255,255,255,0.1)';
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+  ctx.lineTo(x-size*0.15,y+size*0.3);
+  ctx.lineTo(x+size*0.15,y+size*0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle='#2a3d1a';
+}
+
+function drawLabels(){
+  ctx.font='bold 14px Microsoft YaHei';
+  ctx.textAlign='center';
+
+  // 乌林
+  ctx.fillStyle='rgba(230,57,70,0.9)';
+  ctx.fillText('乌 林',mx(-150),my(-130));
+  ctx.font='10px Microsoft YaHei';
+  ctx.fillStyle='rgba(230,57,70,0.6)';
+  ctx.fillText('曹操水寨',mx(-150),my(-115));
+
+  ctx.font='bold 14px Microsoft YaHei';
+  // 赤壁
+  ctx.fillStyle='rgba(33,150,243,0.9)';
+  ctx.fillText('赤 壁',mx(100),my(130));
+  ctx.font='10px Microsoft YaHei';
+  ctx.fillStyle='rgba(33,150,243,0.6)';
+  ctx.fillText('孙刘联军',mx(100),my(145));
+
+  // 江面
+  ctx.font='11px Microsoft YaHei';
+  ctx.fillStyle='rgba(100,180,255,0.4)';
+  ctx.fillText('长  江',mx(0),my(5));
+
+  // 华容道（败走时显示）
+  if(escapePhase){
+    ctx.font='bold 12px Microsoft YaHei';
+    ctx.fillStyle='rgba(255,215,0,0.7)';
+    ctx.fillText('华容道',mx(-300),my(-250));
+  }
+}
+
+function drawRoutes(){
+  const t=gameTime;
+
+  // 曹操行军路线
+  if(t>0 && t<10){
+    ctx.strokeStyle='rgba(230,57,70,0.3)';
+    ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    drawPath(caoRoute);
+    ctx.setLineDash([]);
+  }
+
+  // 联军路线
+  if(t>0 && t<16){
+    ctx.strokeStyle='rgba(33,150,243,0.3)';
+    ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    drawPath(sunRoute);
+    ctx.setLineDash([]);
+  }
+
+  // 黄盖路线
+  if(t>11 && t<17){
+    const progress=Math.min(1,(t-11)/5);
+    ctx.strokeStyle='rgba(255,140,0,0.6)';
+    ctx.lineWidth=3;ctx.setLineDash([8,4]);
+    ctx.setLineDash([]);
+    // 动态路径
+    ctx.beginPath();
+    const n=Math.floor(progress*huangRoute.length);
+    for(let i=0;i<=n&&i<huangRoute.length;i++){
+      const p=huangRoute[i];
+      if(i===0)ctx.moveTo(mx(p.x),my(p.y));
+      else ctx.lineTo(mx(p.x),my(p.y));
+    }
+    if(n<huangRoute.length){
+      const curr=huangRoute[n],next=huangRoute[Math.min(n+1,huangRoute.length-1)];
+      const frac=progress*huangRoute.length-n;
+      ctx.lineTo(mx(curr.x+(next.x-curr.x)*frac),my(curr.y+(next.y-curr.y)*frac));
+    }
+    ctx.strokeStyle='rgba(255,140,0,0.7)';ctx.lineWidth=3;
+    ctx.stroke();
+
+    // 箭头指示
+    ctx.fillStyle='rgba(255,140,0,0.8)';
+    ctx.font='bold 12px Microsoft YaHei';
+    ctx.fillText('← 黄盖率火船出击',mx(0),my(85));
+  }
+
+  // 逃跑路线
+  if(escapePhase){
+    ctx.strokeStyle='rgba(230,57,70,0.4)';
+    ctx.lineWidth=2;ctx.setLineDash([8,6]);
+    drawPath(escapeRoute);
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(230,57,70,0.6)';
+    ctx.font='11px Microsoft YaHei';
+    ctx.fillText('曹操败退路线 →',mx(-100),my(-180));
+  }
+}
+
+function drawPath(points){
+  ctx.beginPath();
+  points.forEach((p,i)=>{
+    if(i===0)ctx.moveTo(mx(p.x),my(p.y));
+    else ctx.lineTo(mx(p.x),my(p.y));
+  });
+  ctx.stroke();
+}
+
+function drawWindArrows(){
+  if(gameTime<10)return;
+  const strength=Math.min(1,(gameTime-10)/5);
+  const arrowCount=Math.floor(20*strength);
+
+  for(let i=0;i<arrowCount;i++){
+    const bx=mx(-600+i*60);
+    const by=my(-50+Math.sin(i*0.7)*30);
+    const ax=Math.cos(windAngle)*18*strength;
+    const ay=Math.sin(windAngle)*18*strength;
+
+    ctx.save();
+    ctx.globalAlpha=0.3+strength*0.3;
+    ctx.strokeStyle='#00e676';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.moveTo(bx,by);
+    ctx.lineTo(bx+ax,by+ay);
+    ctx.stroke();
+    // 箭头
+    const angle=Math.atan2(ay,ax);
+    ctx.beginPath();
+    ctx.moveTo(bx+ax,by+ay);
+    ctx.lineTo(bx+ax-6*Math.cos(angle-0.4),by+ay-6*Math.sin(angle-0.4));
+    ctx.moveTo(bx+ax,by+ay);
+    ctx.lineTo(bx+ax-6*Math.cos(angle+0.4),by+ay-6*Math.sin(angle+0.4));
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawChainLinks(){
+  // 铁链连接线
+  if(gameTime<5||!caoShips.length)return;
+  const alpha=gameTime<23?Math.min(0.4,(gameTime-5)/5):Math.max(0,0.4-(gameTime-23)/3);
+  if(alpha<=0)return;
+
+  ctx.strokeStyle=`rgba(150,150,150,${alpha})`;
+  ctx.lineWidth=1;
+
+  // 横向连接
+  for(let row=0;row<3;row++){
+    for(let col=0;col<7;col++){
+      const i=row*8+col,j=row*8+col+1;
+      if(caoShips[i]&&caoShips[j]&&caoShips[i].alive&&caoShips[j].alive){
+        ctx.beginPath();
+        ctx.moveTo(caoShips[i].x,caoShips[i].y);
+        ctx.lineTo(caoShips[j].x,caoShips[j].y);
+        ctx.stroke();
+      }
+    }
+  }
+  // 纵向连接
+  for(let col=0;col<8;col++){
+    for(let row=0;row<2;row++){
+      const i=row*8+col,j=(row+1)*8+col;
+      if(caoShips[i]&&caoShips[j]&&caoShips[i].alive&&caoShips[j].alive){
+        ctx.beginPath();
+        ctx.moveTo(caoShips[i].x,caoShips[i].y);
+        ctx.lineTo(caoShips[j].x,caoShips[j].y);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawFlag(x,y,color,text){
+  ctx.save();
+  ctx.translate(x,y);
+  // 旗杆
+  ctx.strokeStyle='#888';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-14);ctx.stroke();
+  // 旗帜
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.moveTo(1,-14);ctx.lineTo(14,-14+3);ctx.lineTo(14,-14-3);ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function render(ts){
+  const dt=1/60;
+  updateLogic(dt);
+  updateCamera(dt);
+
+  ctx.clearRect(0,0,W,H);
+
+  // 应用镜头
+  ctx.save();
+  const shakeX=camShake*(Math.random()-0.5)*2;
+  const shakeY=camShake*(Math.random()-0.5)*2;
+  ctx.translate(W/2+shakeX,H/2+shakeY);
+  ctx.scale(camZoom,camZoom);
+  ctx.translate(-W/2-camX,-H/2-camY);
+
+  // 绘制场景
+  drawBanks();
+  drawWater();
+  drawChainLinks();
+  drawRoutes();
+
+  // 曹操旗帜
+  if(gameTime>2&&gameTime<26){
+    drawFlag(mx(-200),my(-70),'rgba(230,57,70,0.8)','曹');
+  }
+
+  // 孙刘旗帜
+  if(gameTime>2){
+    drawFlag(mx(100),my(105),'rgba(33,150,243,0.8)','孙');
+    drawFlag(mx(50),my(110),'rgba(33,150,243,0.8)','刘');
+  }
+
+  // 风粒子
+  if(gameTime>10){
+    windParticles.forEach(p=>p.draw(ctx));
+  }
+
+  // 风向箭头
+  drawWindArrows();
+
+  // 船只
+  caoShips.forEach(s=>s.draw(ctx));
+  sunShips.forEach(s=>s.draw(ctx));
+
+  // 火焰粒子
+  fireParticles.forEach(p=>p.draw(ctx));
+
+  // 烟雾
+  smokeParticles.forEach(p=>p.draw(ctx));
+
+  // 火光映射（江面泛红）
+  if(firePhase){
+    const intensity=Math.min(0.3,(gameTime-fireStartT)/5);
+    ctx.fillStyle=`rgba(255,60,0,${intensity*0.15})`;
+    ctx.fillRect(mx(-600),my(-70),mx(600)-mx(-600),my(70)-my(-70));
+  }
+
+  // 标签
+  drawLabels();
+
+  ctx.restore();
+
+  // 更新进度条
+  const progress=Math.min(1,gameTime/TOTAL_TIME);
+  document.getElementById('prog-fill').style.width=(progress*100)+'%';
+
+  requestAnimationFrame(render);
+}
+
+// ==================== UI控制 ====================
+document.getElementById('btn-play').addEventListener('click',()=>{
+  playing=true;
+  document.getElementById('btn-play').classList.add('active');
+  document.getElementById('btn-pause').classList.remove('active');
+});
+document.getElementById('btn-pause').addEventListener('click',()=>{
+  playing=false;
+  document.getElementById('btn-pause').classList.add('active');
+  document.getElementById('btn-play').classList.remove('active');
+});
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  init();lastPhaseName='';
+  document.getElementById('ev-text').innerHTML='准备演示……';
+});
+document.getElementById('btn-speed').addEventListener('click',function(){
+  const speeds=[0.5,1,2,3];
+  const i=speeds.indexOf(speed);
+  speed=speeds[(i+1)%speeds.length];
+  this.textContent=speed+'×';
+});
+
+// 开始
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

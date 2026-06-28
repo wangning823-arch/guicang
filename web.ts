@@ -38,7 +38,7 @@ async function main() {
     baseUrl: 'https://token-plan-cn.xiaomimimo.com/anthropic',
     model: 'mimo-v2.5',
     apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
-    timeout: 120000,
+    timeout: 600000,
   });
 
   const isValid = await provider.validate();

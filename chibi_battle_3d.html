@@ -3,1193 +3,1036 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>赤壁之战 · 3D战术俯瞰</title>
+<title>赤壁之战 · 3D 战术全景演示</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { 
-    background: #000; 
-    overflow: hidden; 
-    font-family: 'Microsoft YaHei', sans-serif;
-    color: #fff;
-}
-
-#canvas3d {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-}
-
-/* 标题栏 */
-.title-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 80px;
-    background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding-top: 15px;
-}
-
-.title-text {
-    font-size: 36px;
-    font-weight: bold;
-    color: #ffd700;
-    text-shadow: 0 0 30px rgba(255,150,0,0.8), 0 0 60px rgba(255,100,0,0.5);
-    letter-spacing: 15px;
-    font-family: 'KaiTi', 'SimSun', serif;
-}
-
-/* 时间线控制 */
-.timeline {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 180px;
-    background: linear-gradient(0deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 70%, transparent 100%);
-    z-index: 100;
-    padding: 20px 40px;
-}
-
-.timeline-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.phase-name {
-    font-size: 22px;
-    color: #ffd700;
-    font-weight: bold;
-}
-
-.phase-year {
-    font-size: 16px;
-    color: #aaa;
-}
-
-.controls {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.btn {
-    background: rgba(255,215,0,0.2);
-    border: 1px solid #ffd700;
-    color: #ffd700;
-    padding: 8px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.3s;
-}
-
-.btn:hover {
-    background: rgba(255,215,0,0.4);
-}
-
-.btn.active {
-    background: #ffd700;
-    color: #000;
-}
-
-/* 进度条 */
-.progress-container {
-    position: relative;
-    height: 8px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 4px;
-    margin: 15px 0;
-    cursor: pointer;
-}
-
-.progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #ff6b00, #ffd700);
-    border-radius: 4px;
-    width: 0%;
-    transition: width 0.3s;
-}
-
-.progress-markers {
-    position: absolute;
-    top: -5px;
-    left: 0;
-    right: 0;
-    height: 18px;
-    display: flex;
-    justify-content: space-between;
-}
-
-.marker {
-    width: 18px;
-    height: 18px;
-    background: rgba(255,215,0,0.3);
-    border: 2px solid #ffd700;
-    border-radius: 50%;
-    transform: translateX(-50%);
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.marker:hover, .marker.active {
-    background: #ffd700;
-    box-shadow: 0 0 15px rgba(255,215,0,0.8);
-}
-
-/* 场景标签 */
-.scene-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: #888;
-}
-
-/* 信息面板 */
-.info-panel {
-    position: fixed;
-    left: 30px;
-    top: 100px;
-    width: 320px;
-    background: rgba(0,0,0,0.85);
-    border: 1px solid rgba(255,215,0,0.3);
-    border-radius: 10px;
-    padding: 20px;
-    z-index: 100;
-    backdrop-filter: blur(10px);
-}
-
-.info-panel h3 {
-    color: #ffd700;
-    font-size: 18px;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(255,215,0,0.3);
-}
-
-.info-content {
-    font-size: 14px;
-    line-height: 1.8;
-    color: #ddd;
-}
-
-.info-content .highlight {
-    color: #ff6b00;
-    font-weight: bold;
-}
-
-.info-content .blue {
-    color: #4a9eff;
-    font-weight: bold;
-}
-
-.info-content .red {
-    color: #ff4444;
-    font-weight: bold;
-}
-
-/* 图例 */
-.legend {
-    position: fixed;
-    right: 30px;
-    top: 100px;
-    background: rgba(0,0,0,0.85);
-    border: 1px solid rgba(255,215,0,0.3);
-    border-radius: 10px;
-    padding: 15px 20px;
-    z-index: 100;
-    backdrop-filter: blur(10px);
-}
-
-.legend h4 {
-    color: #ffd700;
-    margin-bottom: 10px;
-    font-size: 14px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 8px 0;
-    font-size: 13px;
-    color: #ccc;
-}
-
-.legend-color {
-    width: 30px;
-    height: 4px;
-    border-radius: 2px;
-}
-
-.legend-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-}
-
-/* 加载画面 */
-.loading {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    transition: opacity 1s;
-}
-
-.loading h1 {
-    font-size: 60px;
-    color: #ffd700;
-    text-shadow: 0 0 50px rgba(255,150,0,1);
-    margin-bottom: 30px;
-    font-family: 'KaiTi', serif;
-    letter-spacing: 20px;
-}
-
-.loading-sub {
-    font-size: 20px;
-    color: #aaa;
-    letter-spacing: 5px;
-}
-
-.loading-bar {
-    width: 300px;
-    height: 3px;
-    background: rgba(255,255,255,0.2);
-    margin-top: 40px;
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.loading-progress {
-    height: 100%;
-    background: linear-gradient(90deg, #ff6b00, #ffd700);
-    width: 0%;
-    animation: loadProgress 2s forwards;
-}
-
-@keyframes loadProgress {
-    to { width: 100%; }
-}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Microsoft YaHei','SimHei',sans-serif;color:#fff}
+canvas{display:block;width:100vw;height:100vh}
+#overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+#title-bar{position:absolute;top:0;left:0;width:100%;text-align:center;padding:18px 0;background:linear-gradient(180deg,rgba(0,0,0,0.85) 0%,transparent 100%)}
+#title-bar h1{font-size:32px;color:#ffd700;letter-spacing:8px;text-shadow:0 0 20px rgba(255,165,0,0.6)}
+#title-bar .sub{font-size:14px;color:#aaa;margin-top:4px;letter-spacing:2px}
+#phase-label{position:absolute;top:90px;left:50%;transform:translateX(-50%);font-size:20px;color:#ff6347;text-shadow:0 0 12px rgba(255,0,0,0.5);letter-spacing:3px;transition:opacity 0.5s}
+#info-box{position:absolute;bottom:80px;left:30px;background:rgba(0,0,0,0.75);border:1px solid rgba(255,215,0,0.3);border-radius:12px;padding:16px 20px;max-width:420px;backdrop-filter:blur(6px)}
+#info-box .event{font-size:15px;line-height:1.7;color:#ddd}
+#info-box .event b{color:#ffd700}
+#progress-wrap{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);width:60%;max-width:600px}
+#progress-bar{width:100%;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;overflow:hidden}
+#progress-fill{height:100%;width:0%;background:linear-gradient(90deg,#ff4500,#ffd700);border-radius:2px;transition:width 0.3s}
+#progress-labels{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#888}
+#controls{position:absolute;bottom:75px;right:30px;display:flex;gap:8px;pointer-events:auto}
+#controls button{background:rgba(30,30,30,0.85);border:1px solid rgba(255,215,0,0.4);color:#ffd700;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:13px;transition:all 0.2s}
+#controls button:hover{background:rgba(80,60,0,0.8);border-color:#ffd700}
+#controls button.active{background:rgba(255,165,0,0.25);border-color:#ffd700}
+#legend{position:absolute;top:100px;right:30px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:12px 16px;font-size:12px;line-height:2}
+#legend .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+#tooltip{position:absolute;display:none;background:rgba(0,0,0,0.85);border:1px solid #ffd700;border-radius:8px;padding:10px 14px;font-size:13px;max-width:260px;line-height:1.6;pointer-events:none;z-index:20}
 </style>
 </head>
 <body>
-<!-- 加载画面 -->
-<div class="loading" id="loading">
-    <h1>赤壁之战</h1>
-    <div class="loading-sub">公元208年 · 三国鼎立之始</div>
-    <div class="loading-bar">
-        <div class="loading-progress"></div>
-    </div>
-</div>
-
-<!-- 3D画布 -->
-<canvas id="canvas3d"></canvas>
-
-<!-- 标题 -->
-<div class="title-bar">
-    <div class="title-text">赤 壁 之 战</div>
-</div>
-
-<!-- 信息面板 -->
-<div class="info-panel" id="infoPanel">
-    <h3 id="infoTitle">战役概述</h3>
-    <div class="info-content" id="infoContent">
-        公元208年，曹操率<span class="red">二十余万大军</span>南下，意图一统天下。
-        <span class="blue">孙权</span>与<span class="blue">刘备</span>结盟，在赤壁与曹军对峙。
-        周瑜采用<span class="highlight">火攻之计</span>，趁东南风起，以火船突入曹军水寨，
-        烧毁曹操战船，大败曹军。
-    </div>
-</div>
-
-<!-- 图例 -->
-<div class="legend">
-    <h4>图 例</h4>
-    <div class="legend-item">
-        <div class="legend-color" style="background: linear-gradient(90deg, #ff4444, #ff6600);"></div>
-        <span>曹操军行军路线</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-color" style="background: linear-gradient(90deg, #4488ff, #44aaff);"></div>
-        <span>孙刘联军路线</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-dot" style="background: #ff6600; box-shadow: 0 0 10px #ff6600;"></div>
-        <span>火势蔓延区域</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-dot" style="background: #66ffcc;"></div>
-        <span>东南风方向</span>
-    </div>
-    <div class="legend-item">
-        <div class="legend-dot" style="background: #8b4513;"></div>
-        <span>连环船阵</span>
-    </div>
-</div>
-
-<!-- 时间线 -->
-<div class="timeline">
-    <div class="timeline-header">
-        <div class="phase-name" id="phaseName">序幕：曹操南征</div>
-        <div class="controls">
-            <button class="btn" onclick="prevPhase()">◀ 上一幕</button>
-            <button class="btn" id="playBtn" onclick="togglePlay()">▶ 播放</button>
-            <button class="btn" onclick="nextPhase()">下一幕 ▶</button>
-        </div>
-        <div class="phase-year" id="phaseYear">建安十三年 · 公元208年</div>
-    </div>
-    
-    <div class="progress-container" onclick="seekTo(event)">
-        <div class="progress-bar" id="progressBar"></div>
-        <div class="progress-markers">
-            <div class="marker active" onclick="goToPhase(0)"></div>
-            <div class="marker" onclick="goToPhase(1)"></div>
-            <div class="marker" onclick="goToPhase(2)"></div>
-            <div class="marker" onclick="goToPhase(3)"></div>
-            <div class="marker" onclick="goToPhase(4)"></div>
-            <div class="marker" onclick="goToPhase(5)"></div>
-            <div class="marker" onclick="goToPhase(6)"></div>
-        </div>
-    </div>
-    
-    <div class="scene-labels">
-        <span>曹操南征</span>
-        <span>两军对峙</span>
-        <span>连环船阵</span>
-        <span>东南风起</span>
-        <span>火烧赤壁</span>
-        <span>曹操败走</span>
-        <span>三国鼎立</span>
-    </div>
+<canvas id="c"></canvas>
+<div id="overlay">
+  <div id="title-bar"><h1>赤 壁 之 战</h1><div class="sub">公元208年 · 孙刘联军大破曹操 — 3D战术全景演示</div></div>
+  <div id="phase-label"></div>
+  <div id="info-box"><div class="event" id="event-text">点击「开始演示」观看赤壁之战完整过程</div></div>
+  <div id="progress-wrap">
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+    <div id="progress-labels"><span>对峙</span><span>诈降</span><span>火攻</span><span>追击</span><span>胜利</span></div>
+  </div>
+  <div id="controls">
+    <button id="btn-play" onclick="togglePlay()">▶ 开始演示</button>
+    <button onclick="setSpeed(0.5)">0.5x</button>
+    <button onclick="setSpeed(1)" class="active" id="sp1">1x</button>
+    <button onclick="setSpeed(2)">2x</button>
+    <button onclick="resetDemo()">⟲ 重置</button>
+  </div>
+  <div id="legend">
+    <div><span class="dot" style="background:#ff4444"></span>曹操军（红）</div>
+    <div><span class="dot" style="background:#4488ff"></span>孙刘联军（蓝）</div>
+    <div><span class="dot" style="background:#ff8800"></span>火攻区域</div>
+    <div><span class="dot" style="background:#ffdd00"></span>东南风</div>
+    <div><span class="dot" style="background:#88ff88"></span>行军路线</div>
+  </div>
+  <div id="tooltip"></div>
 </div>
 
 <script>
-// ========== 全局变量 ==========
-const canvas = document.getElementById('canvas3d');
+// ======================== CORE ENGINE ========================
+const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth * devicePixelRatio;
+  H = canvas.height = window.innerHeight * devicePixelRatio;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+resize();
+window.addEventListener('resize', resize);
 
-let width, height;
-let currentPhase = 0;
-let phaseProgress = 0;
-let isPlaying = false;
-let time = 0;
-
-// 长江地形数据
-const terrain = {
-    riverY: 0.45,
-    riverWidth: 0.08,
-    northBank: 0.35,
-    southBank: 0.55
+// ======================== CAMERA ========================
+const cam = {
+  x: 0, y: 0, z: 380,
+  tx: 0, ty: 0, tz: 380,
+  rx: 0.45, trx: 0.45,
+  ry: 0, try_: 0,
+  fov: 500,
+  shake: 0
 };
 
-// 场景阶段数据
-const phases = [
-    {
-        name: '序幕：曹操南征',
-        year: '建安十三年 · 公元208年',
-        info: `<span class="red">曹操</span>率<span class="highlight">二十余万大军</span>（号称八十万）从江陵顺江而下，<br>意图一举消灭孙权、刘备，统一天下。<br><br>曹操大军沿长江北岸东进，战船首尾相连，旌旗蔽日。`,
-    },
-    {
-        name: '两军对峙',
-        year: '建安十三年冬',
-        info: `<span class="blue">孙刘联军</span>约<span class="highlight">五万人</span>，在赤壁与曹军隔江对峙。<br><br><span class="blue">周瑜</span>率东吴水军驻南岸，<span class="blue">刘备</span>军驻樊口。<br>曹军士兵多为北方人，不习水战，多染疾疫。`,
-    },
-    {
-        name: '庞统献策·连环船阵',
-        year: '建安十三年十一月',
-        info: `<span class="highlight">庞统</span>向曹操献策：将战船用铁链首尾相连，<br>以解决北方士兵晕船之苦。<br><br><span class="red">曹操</span>采纳，将战船连成一片，<br>看似稳固，实则埋下祸根。`,
-    },
-    {
-        name: '东南风起',
-        year: '建安十三年十一月甲子日',
-        info: `<span class="highlight">诸葛亮</span>设坛祭天，借得<span class="highlight">东南风</span>。<br><br>隆冬时节突刮东南风，实为气候异常。<br>周瑜早已观测天象，预知风向变化。<br>东南风将火势引向曹军水寨。`,
-    },
-    {
-        name: '火烧赤壁',
-        year: '建安十三年十一月',
-        info: `<span class="blue">黄盖</span>率<span class="highlight">火船</span>诈降，趁风突入曹军水寨。<br><br>火船撞入连环船阵，火势借东南风迅速蔓延。<br>曹军战船首尾相连，无法分散，<span class="highlight">火烧连营</span>。<br>岸上营寨亦被引燃，曹军大乱。`,
-    },
-    {
-        name: '曹操败走华容道',
-        year: '建安十三年十二月',
-        info: `曹操从<span class="highlight">华容道</span>败走，沿途丢盔弃甲。<br><br><span class="blue">关羽</span>念及旧情放走曹操。<br>曹操退回江陵，再回北方，元气大伤。<br>此役奠定了<span class="highlight">三国鼎立</span>的格局。`,
-    },
-    {
-        name: '三国鼎立',
-        year: '公元208年 - 220年',
-        info: `赤壁之战后：<br><br>• <span class="blue">孙权</span>巩固江东，称帝建吴<br>• <span class="blue">刘备</span>取荆州、益州，建立蜀汉<br>• <span class="red">曹操</span>退回北方，曹丕称帝建魏<br><br><span class="highlight">天下三分，鼎足而立</span>`,
-    }
+function project(px, py, pz) {
+  // Rotate around Y axis
+  const cy = Math.cos(cam.ry), sy = Math.sin(cam.ry);
+  let rx = px * cy - pz * sy;
+  let rz = px * sy + pz * cy;
+  // Rotate around X axis
+  const cx = Math.cos(cam.rx), sx = Math.sin(cam.rx);
+  let ry2 = py * cx - rz * sx;
+  let rz2 = py * sx + rz * cx;
+  rz2 += cam.z;
+  if (rz2 < 1) rz2 = 1;
+  const scale = cam.fov / rz2;
+  return {
+    x: (cam.x + rx) * scale + window.innerWidth / 2,
+    y: -(cam.y + ry2) * scale + window.innerHeight / 2,
+    s: scale,
+    z: rz2
+  };
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function easeInOut(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2; }
+function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+
+// ======================== COLORS ========================
+const C = {
+  water: '#1a3a5c',
+  waterLight: '#2a5a8c',
+  waterDeep: '#0d1f35',
+  mountain: '#2d4a2a',
+  mountainLight: '#4a6e44',
+  mountainDark: '#1a2e18',
+  sand: '#8a7a5a',
+  caoRed: '#cc3333',
+  sunBlue: '#3366cc',
+  fire: '#ff6600',
+  fireBright: '#ffaa00',
+  wind: '#ffee44',
+  smoke: '#555555',
+  grass: '#3a5e30'
+};
+
+// ======================== TERRAIN ========================
+// River: flows from left (上游) to right (下游), roughly horizontal
+// North bank (曹操 side): top half, South bank (孙刘 side): bottom half
+const TERRAIN = {
+  riverCenter: 0,       // river center Y in world coords
+  riverWidth: 70,       // half width
+  riverFlowDir: { x: 1, y: 0 },
+  northBank: -50,       // north bank edge
+  southBank: 50,        // south bank edge
+};
+
+// Key locations (world X, Z) - X goes left->right, Z goes near->far
+const LOC = {
+  // 曹操 positions
+  caoCamp: { x: -150, z: -120, label: '曹操大营\n乌林', desc: '曹操八十万大军驻扎于此' },
+  caoFleet: { x: 50, z: -35, label: '曹操水寨', desc: '战船首尾相连，铁索连环' },
+  caoRetreat1: { x: 80, z: -90, label: '华容道', desc: '曹操败退路线' },
+  caoRetreat2: { x: 160, z: -110, label: '北归', desc: '曹操退回北方' },
+
+  // 孙刘 positions
+  sunLiuCamp: { x: 200, z: 60, label: '孙刘联军大营\n樊口', desc: '周瑜、刘备联军驻地' },
+  sunLiuFleet: { x: 100, z: 30, label: '联军战船', desc: '以黄盖诈降为先手' },
+  zhugeAltar: { x: 180, z: 80, label: '七星坛', desc: '诸葛亮借东风处' },
+
+  // Battle zone
+  fireAttack: { x: 30, z: 0, label: '火攻中心', desc: '黄盖火船冲入曹军水寨' },
+  huangGai: { x: 60, z: 15, label: '黄盖出发', desc: '诈降船队载薪草膏油' },
+};
+
+// ======================== PHASES ========================
+const PHASES = [
+  {
+    id: 'intro',
+    name: '第一幕 · 两军对峙',
+    time: 0, end: 8,
+    cam: { x: 0, y: 350, z: 380, rx: 0.55, ry: -0.15 },
+    text: '建安十三年（公元208年），曹操率八十万大军南下，<b>沿长江北岸</b>布防。孙权与刘备结盟，<b>周瑜</b>率三万精兵驻于江南，两军隔江对峙。',
+  },
+  {
+    id: 'standoff',
+    name: '第二幕 · 连环锁船',
+    time: 8, end: 16,
+    cam: { x: 20, y: 120, z: 260, rx: 0.5, ry: 0.05 },
+    text: '曹操采纳庞统之计，将战船<b>首尾相连、铁索锁紧</b>，以求平稳。此计虽便于北方水军作战，却为火攻埋下致命隐患。',
+  },
+  {
+    id: 'plot',
+    name: '第三幕 · 诈降借风',
+    time: 16, end: 24,
+    cam: { x: 100, y: 150, z: 280, rx: 0.45, ry: -0.3 },
+    text: '老将<b>黄盖</b>献苦肉计诈降，命船载薪草膏油。诸葛亮设七星坛<b>祭借东南风</b>，天时地利俱备。',
+  },
+  {
+    id: 'fireAttack',
+    name: '第四幕 · 火烧赤壁',
+    time: 24, end: 36,
+    cam: { x: 30, y: 80, z: 180, rx: 0.5, ry: 0.1 },
+    text: '东南风起，<b>黄盖率火船</b>直冲曹军水寨！火船撞入连锁战船，火借风势，<b>烈焰冲天</b>，曹军水寨一片火海，船只无法分开，伤亡惨重。',
+    shake: true
+  },
+  {
+    id: 'pursuit',
+    name: '第五幕 · 追击华容',
+    time: 36, end: 46,
+    cam: { x: 100, y: 200, z: 300, rx: 0.5, ry: -0.1 },
+    text: '曹操大败，弃船登岸，率残军从<b>华容道</b>仓皇北逃。关羽奉命截击，念及旧义放其生路。此战奠定<b>三国鼎立</b>之格局。',
+  },
+  {
+    id: 'victory',
+    name: '尾声 · 三分天下',
+    time: 46, end: 55,
+    cam: { x: 0, y: 450, z: 500, rx: 0.6, ry: 0.15 },
+    text: '赤壁之战以孙刘联军大胜告终。此役<b>以少胜多</b>，曹操元气大伤，退回北方。孙权巩固江东，刘备趁势取荆州、入西川，<b>三国鼎立</b>之势由此奠定。',
+  }
 ];
 
-// 士兵/船只对象
-let soldiers = [];
-let fireParticles = [];
-let windParticles = [];
+// ======================== STATE ========================
+let playing = false;
+let globalTime = 0;
+let speed = 1;
+let currentPhase = null;
+let fireProgress = 0;       // 0-1 for fire spread
+let windAngle = 0;          // wind direction angle
+let particles = [];
 let ships = [];
-let fireTrails = [];
+let fireParticles = [];
+let windArrows = [];
+let smokeParticles = [];
+let retreatingUnits = [];
 
-// ========== 初始化 ==========
-function resize() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
+function initShips() {
+  // Cao's chained ships (grid formation)
+  ships = [];
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 7; col++) {
+      ships.push({
+        x: LOC.caoFleet.x - 60 + col * 22,
+        z: LOC.caoFleet.z - 10 + row * 12,
+        w: 18, h: 6,
+        side: 'cao',
+        burning: false,
+        chain: true
+      });
+    }
+  }
+  // Sun-Liu ships
+  for (let col = 0; col < 4; col++) {
+    ships.push({
+      x: LOC.sunLiuFleet.x - 20 + col * 18,
+      z: LOC.sunLiuFleet.z,
+      w: 14, h: 5,
+      side: 'sunliu',
+      burning: false,
+      chain: false
+    });
+  }
 }
 
-window.addEventListener('resize', resize);
-resize();
-
-// 初始化粒子系统
 function initParticles() {
-    fireParticles = [];
-    windParticles = [];
-    fireTrails = [];
-    
-    // 风向粒子
-    for (let i = 0; i < 80; i++) {
-        windParticles.push({
-            x: Math.random() * width,
-            y: height * 0.3 + Math.random() * height * 0.3,
-            vx: 2 + Math.random() * 3,
-            vy: -0.5 + Math.random(),
-            size: 2 + Math.random() * 3,
-            alpha: 0.3 + Math.random() * 0.5
-        });
-    }
+  // Water shimmer particles
+  particles = [];
+  for (let i = 0; i < 200; i++) {
+    particles.push({
+      x: (Math.random() - 0.5) * 600,
+      z: (Math.random() - 0.5) * 200,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.3 + Math.random() * 0.5,
+      size: 1 + Math.random() * 2
+    });
+  }
+  // Wind direction arrows
+  windArrows = [];
+  for (let i = 0; i < 30; i++) {
+    windArrows.push({
+      x: (Math.random() - 0.5) * 400,
+      z: (Math.random() - 0.3) * 200,
+      life: 0
+    });
+  }
 }
 
+function initRetreat() {
+  retreatingUnits = [];
+  for (let i = 0; i < 20; i++) {
+    retreatingUnits.push({
+      progress: Math.random() * 0.1,
+      offsetX: (Math.random() - 0.5) * 30,
+      offsetZ: (Math.random() - 0.5) * 20,
+      speed: 0.3 + Math.random() * 0.3
+    });
+  }
+}
+
+initShips();
 initParticles();
+initRetreat();
 
-// ========== 绘制函数 ==========
-
-// 绘制天空渐变
-function drawSky() {
-    const phaseColors = [
-        ['#1a1a2e', '#16213e', '#0f3460'],  // 夜晚/黎明
-        ['#2c3e50', '#3498db', '#85c1e9'],  // 白天
-        ['#2c3e50', '#34495e', '#5d6d7e'],  // 阴天
-        ['#1a1a2e', '#0f3460', '#533483'],  // 夜晚神秘
-        ['#ff6b35', '#ff4500', '#8b0000'],  // 火焰
-        ['#2c3e50', '#34495e', '#1a1a2e'],  // 傍晚
-        ['#1a1a2e', '#16213e', '#0f3460'],  // 夜晚
-    ];
-    
-    const colors = phaseColors[currentPhase];
-    const gradient = ctx.createLinearGradient(0, 0, 0, height * 0.5);
-    gradient.addColorStop(0, colors[0]);
-    gradient.addColorStop(0.5, colors[1]);
-    gradient.addColorStop(1, colors[2]);
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+// ======================== DRAWING FUNCTIONS ========================
+function drawGround() {
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, window.innerHeight);
+  skyGrad.addColorStop(0, '#0a0e1a');
+  skyGrad.addColorStop(0.4, '#15203a');
+  skyGrad.addColorStop(0.7, '#1a3050');
+  skyGrad.addColorStop(1, '#2a4a60');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 }
 
-// 绘制长江水面
-function drawRiver() {
-    const riverTop = height * 0.38;
-    const riverBottom = height * 0.58;
-    
-    // 水面基础
-    const waterGradient = ctx.createLinearGradient(0, riverTop, 0, riverBottom);
-    
-    if (currentPhase >= 4) {
-        // 火焰映照下的水面
-        waterGradient.addColorStop(0, 'rgba(139,69,19,0.8)');
-        waterGradient.addColorStop(0.5, 'rgba(100,50,20,0.9)');
-        waterGradient.addColorStop(1, 'rgba(50,25,10,0.8)');
-    } else {
-        waterGradient.addColorStop(0, '#1a3a5c');
-        waterGradient.addColorStop(0.3, '#1e4d6b');
-        waterGradient.addColorStop(0.7, '#2a5f7a');
-        waterGradient.addColorStop(1, '#1a3a5c');
-    }
-    
-    ctx.fillStyle = waterGradient;
-    ctx.fillRect(0, riverTop, width, riverBottom - riverTop);
-    
-    // 水面波纹
-    ctx.strokeStyle = currentPhase >= 4 ? 'rgba(255,100,0,0.3)' : 'rgba(100,200,255,0.2)';
-    ctx.lineWidth = 1;
-    
-    for (let i = 0; i < 15; i++) {
-        ctx.beginPath();
-        const y = riverTop + (riverBottom - riverTop) * (i / 15);
-        ctx.moveTo(0, y);
-        
-        for (let x = 0; x < width; x += 20) {
-            const wave = Math.sin((x + time * 50) / 100) * 3;
-            ctx.lineTo(x, y + wave);
-        }
-        ctx.stroke();
-    }
+function drawMountainRange(points, baseY, color, colorLight, offsetTime) {
+  if (points.length < 2) return;
+  ctx.beginPath();
+  const first = project(points[0].x, baseY, points[0].z);
+  ctx.moveTo(first.x, first.y);
+  
+  const screenPts = points.map(p => project(p.x, p.y, p.z));
+  
+  for (let i = 1; i < screenPts.length; i++) {
+    const prev = screenPts[i-1];
+    const curr = screenPts[i];
+    const cpx = (prev.x + curr.x) / 2;
+    const cpy = (prev.y + curr.y) / 2;
+    ctx.quadraticCurveTo(prev.x, prev.y, cpx, cpy);
+  }
+  ctx.lineTo(screenPts[screenPts.length-1].x, window.innerHeight + 50);
+  ctx.lineTo(screenPts[0].x, window.innerHeight + 50);
+  ctx.closePath();
+  
+  const grad = ctx.createLinearGradient(0, 0, 0, window.innerHeight);
+  grad.addColorStop(0, colorLight);
+  grad.addColorStop(1, color);
+  ctx.fillStyle = grad;
+  ctx.fill();
 }
 
-// 绘制两岸地形
+function drawRiver(time) {
+  // River polygon
+  const w1 = project(-350, 0, TERRAIN.riverCenter - TERRAIN.riverWidth);
+  const w2 = project(-350, 0, TERRAIN.riverCenter + TERRAIN.riverWidth);
+  const w3 = project(350, 0, TERRAIN.riverCenter + TERRAIN.riverWidth);
+  const w4 = project(350, 0, TERRAIN.riverCenter - TERRAIN.riverWidth);
+  
+  ctx.beginPath();
+  ctx.moveTo(w1.x, w1.y);
+  ctx.lineTo(w2.x, w2.y);
+  ctx.lineTo(w3.x, w3.y);
+  ctx.lineTo(w4.x, w4.y);
+  ctx.closePath();
+  
+  // Water color with shimmer
+  const waterGrad = ctx.createLinearGradient(w1.x, w1.y, w1.x, w2.y);
+  waterGrad.addColorStop(0, '#1a3a6a');
+  waterGrad.addColorStop(0.3, '#2255aa');
+  waterGrad.addColorStop(0.5, '#2a66bb');
+  waterGrad.addColorStop(0.7, '#2255aa');
+  waterGrad.addColorStop(1, '#1a3a6a');
+  ctx.fillStyle = waterGrad;
+  ctx.fill();
+  
+  // Water shimmer lines
+  for (let i = 0; i < 40; i++) {
+    const px = -300 + i * 16 + Math.sin(time * 0.8 + i * 0.5) * 5;
+    const pz = TERRAIN.riverCenter - TERRAIN.riverWidth + 15 + ((i * 7 + time * 15) % (TERRAIN.riverWidth * 2 - 30));
+    const p1 = project(px, 1, pz);
+    const p2 = project(px + 12 + Math.sin(time + i) * 4, 1, pz + Math.sin(time * 1.5 + i) * 3);
+    if (p1.z > 0 && p2.z > 0) {
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.strokeStyle = `rgba(150,200,255,${0.08 + Math.sin(time * 2 + i) * 0.05})`;
+      ctx.lineWidth = Math.max(0.5, p1.s * 2);
+      ctx.stroke();
+    }
+  }
+}
+
 function drawBanks() {
-    // 北岸（曹操军）
-    const northGradient = ctx.createLinearGradient(0, height * 0.2, 0, height * 0.38);
-    northGradient.addColorStop(0, '#2d4a3e');
-    northGradient.addColorStop(1, '#3d5a4e');
-    
-    ctx.fillStyle = northGradient;
+  // North bank (Cao side)
+  const nb1 = project(-350, 0, TERRAIN.riverCenter - TERRAIN.riverWidth - 5);
+  const nb2 = project(-350, 0, -200);
+  const nb3 = project(350, 0, -200);
+  const nb4 = project(350, 0, TERRAIN.riverCenter - TERRAIN.riverWidth - 5);
+  
+  ctx.beginPath();
+  ctx.moveTo(nb1.x, nb1.y);
+  ctx.lineTo(nb2.x, nb2.y);
+  ctx.lineTo(nb3.x, nb3.y);
+  ctx.lineTo(nb4.x, nb4.y);
+  ctx.closePath();
+  const nGrad = ctx.createLinearGradient(0, nb1.y, 0, nb2.y);
+  nGrad.addColorStop(0, '#5a7a4a');
+  nGrad.addColorStop(1, '#2a3e22');
+  ctx.fillStyle = nGrad;
+  ctx.fill();
+  
+  // South bank (Sun-Liu side)
+  const sb1 = project(-350, 0, 200);
+  const sb2 = project(-350, 0, TERRAIN.riverCenter + TERRAIN.riverWidth + 5);
+  const sb3 = project(350, 0, TERRAIN.riverCenter + TERRAIN.riverWidth + 5);
+  const sb4 = project(350, 0, 200);
+  
+  ctx.beginPath();
+  ctx.moveTo(sb1.x, sb1.y);
+  ctx.lineTo(sb2.x, sb2.y);
+  ctx.lineTo(sb3.x, sb3.y);
+  ctx.lineTo(sb4.x, sb4.y);
+  ctx.closePath();
+  const sGrad = ctx.createLinearGradient(0, sb2.y, 0, sb1.y);
+  sGrad.addColorStop(0, '#5a7a4a');
+  sGrad.addColorStop(1, '#2a3e22');
+  ctx.fillStyle = sGrad;
+  ctx.fill();
+  
+  // Shoreline highlights
+  const sh1 = project(-350, 2, TERRAIN.riverCenter - TERRAIN.riverWidth);
+  const sh2 = project(350, 2, TERRAIN.riverCenter - TERRAIN.riverWidth);
+  const sh3 = project(-350, 2, TERRAIN.riverCenter + TERRAIN.riverWidth);
+  const sh4 = project(350, 2, TERRAIN.riverCenter + TERRAIN.riverWidth);
+  
+  [[sh1,sh2,'#8a9a6a'],[sh3,sh4,'#8a9a6a']].forEach(([a,b,c]) => {
     ctx.beginPath();
-    ctx.moveTo(0, height * 0.38);
-    
-    // 北岸山丘轮廓
-    for (let x = 0; x <= width; x += 50) {
-        const hillHeight = 30 * Math.sin(x / 300) + 20 * Math.cos(x / 200);
-        ctx.lineTo(x, height * 0.38 - Math.abs(hillHeight) - 10);
-    }
-    ctx.lineTo(width, 0);
-    ctx.lineTo(0, 0);
-    ctx.closePath();
-    ctx.fill();
-    
-    // 南岸（孙刘联军）
-    const southGradient = ctx.createLinearGradient(0, height * 0.58, 0, height * 0.75);
-    southGradient.addColorStop(0, '#3d5a4e');
-    southGradient.addColorStop(1, '#2d4a3e');
-    
-    ctx.fillStyle = southGradient;
-    ctx.beginPath();
-    ctx.moveTo(0, height * 0.58);
-    
-    for (let x = 0; x <= width; x += 50) {
-        const hillHeight = 25 * Math.sin(x / 250 + 1) + 15 * Math.cos(x / 180);
-        ctx.lineTo(x, height * 0.58 + Math.abs(hillHeight) + 10);
-    }
-    ctx.lineTo(width, height);
-    ctx.lineTo(0, height);
-    ctx.closePath();
-    ctx.fill();
-    
-    // 赤壁标注
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 16px KaiTi, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('赤 壁', width * 0.65, height * 0.35);
-    
-    // 乌林标注
-    ctx.fillText('乌 林', width * 0.65, height * 0.63);
-}
-
-// 绘制行军路线
-function drawMarchRoutes() {
-    const routeProgress = Math.min(1, phaseProgress * 2);
-    
-    // 曹操军路线（红色）- 从北岸
-    if (currentPhase >= 0) {
-        ctx.strokeStyle = 'rgba(255,68,68,0.8)';
-        ctx.lineWidth = 4;
-        ctx.setLineDash([10, 5]);
-        
-        ctx.beginPath();
-        const startX = -50;
-        const endX = width * 0.7 * routeProgress;
-        ctx.moveTo(startX, height * 0.33);
-        
-        for (let x = startX; x <= endX; x += 5) {
-            const y = height * 0.33 + 10 * Math.sin(x / 150);
-            ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-        
-        // 路径箭头
-        if (routeProgress > 0.3) {
-            drawArrow(endX - 20, height * 0.33, endX + 20, height * 0.33, '#ff4444');
-        }
-    }
-    
-    // 孙刘联军路线（蓝色）
-    if (currentPhase >= 1) {
-        ctx.strokeStyle = 'rgba(68,136,255,0.8)';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([8, 4]);
-        
-        ctx.beginPath();
-        ctx.moveTo(width * 0.3, height * 0.7);
-        ctx.lineTo(width * 0.55 * routeProgress + width * 0.3, height * 0.62);
-        ctx.stroke();
-        
-        // 樊口标注
-        ctx.fillStyle = '#4a9eff';
-        ctx.font = '14px KaiTi, serif';
-        ctx.fillText('樊口', width * 0.32, height * 0.73);
-    }
-    
-    ctx.setLineDash([]);
-}
-
-// 绘制曹军水寨和连环船
-function drawCaoCamp() {
-    if (currentPhase < 0) return;
-    
-    const campX = width * 0.55;
-    const campY = height * 0.41;
-    
-    // 水寨标记
-    ctx.strokeStyle = 'rgba(255,68,68,0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(campX - 80, campY - 20, 200, 35);
-    
-    ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 14px KaiTi, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('曹军水寨', campX + 20, campY - 28);
-    
-    // 连环船（阶段2开始显示）
-    if (currentPhase >= 2) {
-        drawLinkedShips(campX, campY);
-    }
-}
-
-// 绘制连环船阵
-function drawLinkedShips(baseX, baseY) {
-    const shipCount = 8;
-    const shipWidth = 25;
-    const shipHeight = 12;
-    const linkProgress = Math.min(1, (currentPhase === 2 ? phaseProgress : 1));
-    
-    for (let i = 0; i < shipCount * linkProgress; i++) {
-        const x = baseX - 70 + i * 22;
-        const y = baseY;
-        
-        // 船体
-        ctx.fillStyle = currentPhase >= 4 ? '#8b4513' : '#654321';
-        ctx.beginPath();
-        ctx.ellipse(x, y, shipWidth/2, shipHeight/2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // 船帆
-        ctx.fillStyle = currentPhase >= 4 ? '#aa3300' : '#ddd';
-        ctx.beginPath();
-        ctx.moveTo(x, y - 15);
-        ctx.lineTo(x + 8, y);
-        ctx.lineTo(x - 8, y);
-        ctx.closePath();
-        ctx.fill();
-        
-        // 铁链连接
-        if (i > 0 && linkProgress > 0.5) {
-            ctx.strokeStyle = '#888';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(x - 12, y);
-            ctx.lineTo(x - 10, y);
-            ctx.stroke();
-        }
-    }
-    
-    // 连环船标注
-    if (linkProgress > 0.5) {
-        ctx.fillStyle = '#8b4513';
-        ctx.font = '12px KaiTi, serif';
-        ctx.fillText('连 环 船 阵', baseX + 20, baseY + 35);
-    }
-}
-
-// 绘制孙刘联军
-function drawSunLiuCamp() {
-    if (currentPhase < 1) return;
-    
-    const campX = width * 0.35;
-    const campY = height * 0.57;
-    
-    // 南岸营寨
-    ctx.strokeStyle = 'rgba(68,136,255,0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(campX - 60, campY - 15, 150, 30);
-    
-    ctx.fillStyle = '#4a9eff';
-    ctx.font = 'bold 14px KaiTi, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('孙刘联军', campX + 15, campY - 22);
-    
-    // 联军船只
-    const shipCount = 5;
-    for (let i = 0; i < shipCount; i++) {
-        const x = campX - 50 + i * 25;
-        const y = campY + 5;
-        
-        ctx.fillStyle = '#4a9eff';
-        ctx.beginPath();
-        ctx.ellipse(x, y, 12, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.moveTo(x, y - 10);
-        ctx.lineTo(x + 5, y);
-        ctx.lineTo(x - 5, y);
-        ctx.closePath();
-        ctx.fill();
-    }
-}
-
-// 绘制东南风
-function drawWind() {
-    if (currentPhase < 3) return;
-    
-    const windIntensity = currentPhase === 3 ? phaseProgress : 1;
-    
-    // 更新风粒子
-    windParticles.forEach(p => {
-        p.x += p.vx * windIntensity * 1.5;
-        p.y += p.vy * windIntensity;
-        
-        if (p.x > width + 20) {
-            p.x = -20;
-            p.y = height * 0.3 + Math.random() * height * 0.3;
-        }
-        
-        // 绘制风粒子
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(102,255,204,${p.alpha * windIntensity})`;
-        ctx.lineWidth = p.size * 0.5;
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x - p.size * 8, p.y + p.size * 2);
-        ctx.stroke();
-    });
-    
-    // 风向大箭头
-    if (windIntensity > 0.3) {
-        const arrowX = width * 0.45;
-        const arrowY = height * 0.48;
-        
-        ctx.save();
-        ctx.globalAlpha = windIntensity * 0.6;
-        
-        // 箭头主体
-        ctx.strokeStyle = '#66ffcc';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(arrowX - 60, arrowY + 15);
-        ctx.lineTo(arrowX + 40, arrowY - 15);
-        ctx.stroke();
-        
-        // 箭头头部
-        ctx.fillStyle = '#66ffcc';
-        ctx.beginPath();
-        ctx.moveTo(arrowX + 50, arrowY - 20);
-        ctx.lineTo(arrowX + 30, arrowY - 10);
-        ctx.lineTo(arrowX + 35, arrowY - 25);
-        ctx.closePath();
-        ctx.fill();
-        
-        ctx.restore();
-        
-        // 东南风标注
-        ctx.fillStyle = '#66ffcc';
-        ctx.font = 'bold 16px KaiTi, serif';
-        ctx.fillText('东 南 风', arrowX - 10, arrowY + 35);
-    }
-}
-
-// 绘制黄盖火船突入
-function drawFireAttack() {
-    if (currentPhase < 4) return;
-    
-    const attackProgress = Math.min(1, phaseProgress * 1.5);
-    
-    // 火船从南岸出发
-    const fireShipX = width * 0.4 + attackProgress * width * 0.18;
-    const fireShipY = height * 0.55 - attackProgress * height * 0.12;
-    
-    // 火船
-    ctx.fillStyle = '#ff4500';
-    ctx.beginPath();
-    ctx.ellipse(fireShipX, fireShipY, 15, 8, -0.3, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // 火焰
-    for (let i = 0; i < 8; i++) {
-        const fx = fireShipX + Math.random() * 20 - 10;
-        const fy = fireShipY - 10 - Math.random() * 20;
-        const fs = 3 + Math.random() * 5;
-        
-        const gradient = ctx.createRadialGradient(fx, fy, 0, fx, fy, fs);
-        gradient.addColorStop(0, '#ffff00');
-        gradient.addColorStop(0.5, '#ff6600');
-        gradient.addColorStop(1, 'rgba(255,0,0,0)');
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(fx, fy, fs, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    // 火船尾迹
-    ctx.strokeStyle = 'rgba(255,100,0,0.4)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(width * 0.4, height * 0.55);
-    ctx.lineTo(fireShipX, fireShipY);
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = c;
+    ctx.lineWidth = Math.max(1, a.s * 4);
+    ctx.globalAlpha = 0.5;
     ctx.stroke();
-    
-    // 标注
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 14px KaiTi, serif';
-    ctx.fillText('黄盖火船', fireShipX, fireShipY + 25);
-}
-
-// 绘制火势蔓延
-function drawFireSpread() {
-    if (currentPhase < 4) return;
-    
-    const fireProgress = currentPhase === 4 ? phaseProgress : 1;
-    
-    // 添加新火焰粒子
-    if (fireProgress > 0.3 && Math.random() > 0.5) {
-        const baseX = width * 0.58;
-        const baseY = height * 0.42;
-        
-        fireParticles.push({
-            x: baseX + (Math.random() - 0.3) * 150 * fireProgress,
-            y: baseY + (Math.random() - 0.5) * 40,
-            vx: (Math.random() - 0.5) * 2,
-            vy: -1 - Math.random() * 3,
-            life: 1,
-            size: 5 + Math.random() * 15
-        });
-    }
-    
-    // 更新和绘制火焰粒子
-    fireParticles = fireParticles.filter(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life -= 0.02;
-        
-        if (p.life > 0) {
-            const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * p.life);
-            gradient.addColorStop(0, `rgba(255,255,0,${p.life})`);
-            gradient.addColorStop(0.3, `rgba(255,150,0,${p.life * 0.8})`);
-            gradient.addColorStop(1, 'rgba(255,0,0,0)');
-            
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-            ctx.fill();
-            
-            return true;
-        }
-        return false;
-    });
-    
-    // 限制粒子数量
-    if (fireParticles.length > 200) {
-        fireParticles = fireParticles.slice(-200);
-    }
-    
-    // 火势覆盖区域
-    if (fireProgress > 0.5) {
-        ctx.fillStyle = `rgba(255,100,0,${fireProgress * 0.15})`;
-        ctx.beginPath();
-        ctx.ellipse(width * 0.6, height * 0.44, 120 * fireProgress, 35 * fireProgress, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    // 火势蔓延标注
-    if (fireProgress > 0.6) {
-        ctx.fillStyle = '#ff6600';
-        ctx.font = 'bold 18px KaiTi, serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🔥 火烧连营 🔥', width * 0.6, height * 0.48);
-    }
-}
-
-// 绘制曹操败走
-def drawCaoRetreat() {
-    if (currentPhase < 5) return;
-    
-    const retreatProgress = Math.min(1, phaseProgress);
-    
-    // 华容道路径
-    ctx.strokeStyle = 'rgba(255,68,68,0.6)';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([5, 5]);
-    
-    ctx.beginPath();
-    ctx.moveTo(width * 0.55, height * 0.38);
-    
-    const pathPoints = [
-        [0.5, 0.35],
-        [0.45, 0.32],
-        [0.4, 0.28],
-        [0.35, 0.25],
-        [0.3, 0.22],
-        [0.25, 0.2]
-    ];
-    
-    pathPoints.forEach((p, i) => {
-        if (i / pathPoints.length < retreatProgress) {
-            ctx.lineTo(width * p[0], height * p[1]);
-        }
-    });
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // 曹操败军
-    const retreatX = width * (0.55 - retreatProgress * 0.3);
-    const retreatY = height * (0.38 - retreatProgress * 0.18);
-    
-    // 败军图标
-    ctx.fillStyle = '#ff4444';
-    ctx.beginPath();
-    ctx.arc(retreatX, retreatY, 12, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('曹', retreatX, retreatY);
-    
-    // 败退小兵
-    for (let i = 0; i < 5; i++) {
-        const dx = retreatX + 15 + i * 12 + Math.random() * 5;
-        const dy = retreatY + Math.random() * 10 - 5;
-        
-        ctx.fillStyle = '#aa3333';
-        ctx.beginPath();
-        ctx.arc(dx, dy, 4, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    // 华容道标注
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 14px KaiTi, serif';
-    ctx.fillText('华容道', width * 0.38, height * 0.27);
-    
-    // 标注败退
-    ctx.fillStyle = '#ff4444';
-    ctx.font = '16px KaiTi, serif';
-    ctx.fillText('曹操败走', retreatX, retreatY - 25);
-}
-
-// 绘制三国鼎立
-function drawThreeKingdoms() {
-    if (currentPhase < 6) return;
-    
-    const showProgress = Math.min(1, phaseProgress * 2);
-    
-    // 魏
-    ctx.globalAlpha = showProgress;
-    
-    ctx.fillStyle = 'rgba(255,68,68,0.3)';
-    ctx.beginPath();
-    ctx.ellipse(width * 0.5, height * 0.2, 100, 40, 0, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 28px KaiTi, serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('魏', width * 0.5, height * 0.2);
-    
-    ctx.font = '14px KaiTi, serif';
-    ctx.fillText('曹操 · 汝阳', width * 0.5, height * 0.2 + 35);
-    
-    // 蜀
-    ctx.fillStyle = 'rgba(68,136,255,0.3)';
-    ctx.beginPath();
-    ctx.ellipse(width * 0.25, height * 0.75, 80, 40, 0, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#4a9eff';
-    ctx.font = 'bold 28px KaiTi, serif';
-    ctx.fillText('蜀', width * 0.25, height * 0.75);
-    
-    ctx.font = '14px KaiTi, serif';
-    ctx.fillText('刘备 · 成都', width * 0.25, height * 0.75 + 35);
-    
-    // 吴
-    ctx.fillStyle = 'rgba(0,200,100,0.3)';
-    ctx.beginPath();
-    ctx.ellipse(width * 0.75, height * 0.75, 80, 40, 0, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.fillStyle = '#00c864';
-    ctx.font = 'bold 28px KaiTi, serif';
-    ctx.fillText('吴', width * 0.75, height * 0.75);
-    
-    ctx.font = '14px KaiTi, serif';
-    ctx.fillText('孙权 · 建业', width * 0.75, height * 0.75 + 35);
-    
-    // 连接线
-    ctx.strokeStyle = 'rgba(255,215,0,0.3)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    
-    ctx.beginPath();
-    ctx.moveTo(width * 0.5, height * 0.24);
-    ctx.lineTo(width * 0.25, height * 0.71);
-    ctx.moveTo(width * 0.5, height * 0.24);
-    ctx.lineTo(width * 0.75, height * 0.71);
-    ctx.moveTo(width * 0.25, height * 0.71);
-    ctx.lineTo(width * 0.75, height * 0.71);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
     ctx.globalAlpha = 1;
-    
-    // 鼎立标题
-    if (showProgress > 0.5) {
-        ctx.fillStyle = '#ffd700';
-        ctx.font = 'bold 32px KaiTi, serif';
-        ctx.fillText('天 下 三 分 · 鼎 足 而 立', width * 0.5, height * 0.5);
-    }
+  });
 }
 
-// 绘制箭头
-function drawArrow(x1, y1, x2, y2, color) {
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    const headLen = 12;
-    
-    ctx.fillStyle = color;
+function drawMountains() {
+  // North mountains (曹操 side background)
+  const nm = [];
+  for (let i = -400; i <= 400; i += 30) {
+    const h = 40 + Math.sin(i * 0.015) * 25 + Math.cos(i * 0.008) * 15;
+    nm.push({ x: i, y: h, z: -180 + Math.sin(i * 0.01) * 20 });
+  }
+  drawMountainRange(nm, -170, '#1a2e18', '#3a5a30', 0);
+  
+  // South mountains (孙刘 side background)
+  const sm = [];
+  for (let i = -400; i <= 400; i += 30) {
+    const h = 30 + Math.cos(i * 0.012) * 20 + Math.sin(i * 0.02) * 12;
+    sm.push({ x: i, y: h, z: 180 + Math.sin(i * 0.008) * 15 });
+  }
+  drawMountainRange(sm, 170, '#1a2e18', '#3a5a30', 0);
+}
+
+function drawShip(x, z, w, h, color, burning, time) {
+  const p = project(x, 2, z);
+  if (p.z < 1) return;
+  const sw = w * p.s * 0.8;
+  const sh = h * p.s * 0.8;
+  
+  // Ship hull
+  ctx.beginPath();
+  ctx.moveTo(p.x - sw, p.y);
+  ctx.lineTo(p.x + sw, p.y);
+  ctx.lineTo(p.x + sw * 0.8, p.y + sh);
+  ctx.lineTo(p.x - sw * 0.8, p.y + sh);
+  ctx.closePath();
+  ctx.fillStyle = burning ? `rgba(255,${Math.floor(100+Math.sin(time*8)*50)},0,0.9)` : color;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  // Mast
+  if (!burning || Math.random() > 0.3) {
     ctx.beginPath();
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI/6), y2 - headLen * Math.sin(angle - Math.PI/6));
-    ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI/6), y2 - headLen * Math.sin(angle + Math.PI/6));
-    ctx.closePath();
-    ctx.fill();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x, p.y - sh * 2);
+    ctx.strokeStyle = burning ? '#ff6600' : '#8a7a5a';
+    ctx.lineWidth = Math.max(1, p.s * 2);
+    ctx.stroke();
+  }
 }
 
-// 绘制云层
-function drawClouds() {
-    ctx.fillStyle = 'rgba(150,150,150,0.1)';
-    
-    for (let i = 0; i < 8; i++) {
-        const x = (i * 200 + time * 10) % (width + 200) - 100;
-        const y = 50 + i * 30 + Math.sin(time + i) * 10;
-        
+function drawChainedFleet(time, fireProg) {
+  // Draw chain connections
+  const burningShips = ships.filter(s => s.side === 'cao');
+  ctx.globalAlpha = 0.4;
+  for (let i = 0; i < burningShips.length; i++) {
+    for (let j = i + 1; j < burningShips.length; j++) {
+      const a = burningShips[i], b = burningShips[j];
+      const dist = Math.hypot(a.x - b.x, a.z - b.z);
+      if (dist < 30) {
+        const pa = project(a.x, 2, a.z);
+        const pb = project(b.x, 2, b.z);
         ctx.beginPath();
-        ctx.arc(x, y, 40, 0, Math.PI * 2);
-        ctx.arc(x + 30, y - 10, 35, 0, Math.PI * 2);
-        ctx.arc(x + 60, y, 30, 0, Math.PI * 2);
+        ctx.moveTo(pa.x, pa.y);
+        ctx.lineTo(pb.x, pb.y);
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = Math.max(0.5, pa.s * 1.5);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+  
+  // Draw ships
+  ships.forEach(s => {
+    if (s.side === 'cao') {
+      const distFromFire = Math.hypot(s.x - LOC.fireAttack.x, s.z - LOC.fireAttack.z);
+      s.burning = fireProg > 0 && distFromFire < 80 * fireProg + 20;
+      const color = s.burning ? `rgb(255,${Math.floor(Math.max(0,180-distFromFire))},0)` : C.caoRed;
+      drawShip(s.x, s.z, s.w, s.h, color, s.burning, time);
+    } else {
+      drawShip(s.x, s.z, s.w, s.h, C.sunBlue, false, time);
+    }
+  });
+}
+
+function drawHuangGaiShip(time, progress) {
+  if (progress <= 0) return;
+  // Huang Gai's fire ship moves from south bank toward Cao fleet
+  const startX = LOC.huangGai.x;
+  const startZ = LOC.huangGai.z;
+  const endX = LOC.fireAttack.x;
+  const endZ = LOC.fireAttack.z;
+  const p = lerp(0, 1, Math.min(progress, 1));
+  
+  const px = lerp(startX, endX, easeInOut(p));
+  const pz = lerp(startZ, endZ, easeInOut(p));
+  
+  // Fire ship
+  drawShip(px, pz, 16, 5, '#cc6600', progress > 0.5, time);
+  
+  // Trail fire
+  if (progress > 0.3) {
+    for (let i = 0; i < 8; i++) {
+      const tp = Math.max(0, progress - i * 0.03);
+      const tx = lerp(startX, endX, easeInOut(tp));
+      const tz = lerp(startZ, endZ, easeInOut(tp));
+      const pp = project(tx + (Math.random()-0.5)*8, 3 + Math.random()*5, tz + (Math.random()-0.5)*4);
+      if (pp.z > 0) {
+        const sz = (3 + Math.random() * 4) * pp.s;
+        ctx.beginPath();
+        ctx.arc(pp.x, pp.y, sz, 0, Math.PI * 2);
+        const alpha = 0.4 - i * 0.04;
+        ctx.fillStyle = `rgba(255,${100+Math.random()*100|0},0,${alpha})`;
         ctx.fill();
+      }
     }
+  }
 }
 
-// ========== 主渲染循环 ==========
-function render() {
-    ctx.clearRect(0, 0, width, height);
-    
-    // 绘制场景
-    drawSky();
-    drawClouds();
-    drawBanks();
-    drawRiver();
-    drawMarchRoutes();
-    drawCaoCamp();
-    drawSunLiuCamp();
-    drawWind();
-    drawFireAttack();
-    drawFireSpread();
-    drawCaoRetreat();
-    drawThreeKingdoms();
-    
-    // 更新时间
-    time += 0.016;
-    
-    // 自动播放更新
-    if (isPlaying) {
-        phaseProgress += 0.003;
-        if (phaseProgress >= 1) {
-            if (currentPhase < phases.length - 1) {
-                currentPhase++;
-                phaseProgress = 0;
-                updateUI();
-            } else {
-                isPlaying = false;
-                document.getElementById('playBtn').textContent = '▶ 播放';
-            }
-        }
-        updateProgressBar();
+function drawFireEffect(time, fireProg) {
+  if (fireProg <= 0) return;
+  
+  // Large fire glow
+  const center = project(LOC.fireAttack.x, 0, LOC.fireAttack.z);
+  if (center.z > 0) {
+    const radius = fireProg * 200 * center.s;
+    const grd = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, radius);
+    grd.addColorStop(0, `rgba(255,120,0,${0.15 * fireProg})`);
+    grd.addColorStop(0.5, `rgba(255,60,0,${0.08 * fireProg})`);
+    grd.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(center.x - radius, center.y - radius, radius * 2, radius * 2);
+  }
+  
+  // Fire particles
+  const fireRadius = fireProg * 60;
+  for (let i = 0; i < 60 * fireProg; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.random() * fireRadius;
+    const fx = LOC.fireAttack.x + Math.cos(angle) * r;
+    const fz = LOC.fireAttack.z + Math.sin(angle) * r;
+    const fh = 5 + Math.random() * 30 * fireProg;
+    const fp = project(fx, fh, fz);
+    if (fp.z > 0) {
+      const sz = (2 + Math.random() * 5) * fp.s;
+      ctx.beginPath();
+      ctx.arc(fp.x, fp.y, sz, 0, Math.PI * 2);
+      const hue = Math.random() > 0.3 ? `rgba(255,${80+Math.random()*120|0},0,0.8)` : `rgba(255,200,50,0.6)`;
+      ctx.fillStyle = hue;
+      ctx.fill();
     }
-    
-    requestAnimationFrame(render);
+  }
+  
+  // Smoke columns
+  for (let i = 0; i < 12 * fireProg; i++) {
+    const sx = LOC.fireAttack.x + (Math.random() - 0.5) * 80 * fireProg;
+    const sz = LOC.fireAttack.z + (Math.random() - 0.5) * 40;
+    const sh = 30 + Math.random() * 80 * fireProg;
+    const st = (time * 2 + i * 3) % 100;
+    const sp = project(sx, sh + st * 0.5, sz);
+    if (sp.z > 0) {
+      const sSize = (8 + st * 0.3) * sp.s;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y - st * sp.s * 0.3, sSize, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(80,80,80,${Math.max(0, 0.25 - st * 0.002)})`;
+      ctx.fill();
+    }
+  }
 }
 
-// ========== UI更新 ==========
-function updateUI() {
-    document.getElementById('phaseName').textContent = phases[currentPhase].name;
-    document.getElementById('phaseYear').textContent = phases[currentPhase].year;
-    document.getElementById('infoTitle').textContent = phases[currentPhase].name;
-    document.getElementById('infoContent').innerHTML = phases[currentPhase].info;
+function drawWindArrows(time, windStrength) {
+  if (windStrength <= 0) return;
+  //东南风: from southeast (bottom-right) to northwest (top-left)
+  const windDirX = -0.7;
+  const windDirZ = -0.7;
+  
+  for (let i = 0; i < 25 * windStrength; i++) {
+    const arrow = windArrows[i % windArrows.length];
+    const baseX = arrow.x;
+    const baseZ = arrow.z;
     
-    // 更新标记
-    document.querySelectorAll('.marker').forEach((m, i) => {
-        m.classList.toggle('active', i === currentPhase);
+    // Animate along wind direction
+    const animOffset = (time * 40 + i * 37) % 300 - 150;
+    const wx = baseX + windDirX * animOffset;
+    const wz = baseZ + windDirZ * animOffset;
+    
+    // Only show in battle area
+    if (Math.abs(wx) > 200 || Math.abs(wz) > 120) continue;
+    
+    const p1 = project(wx, 15, wz);
+    const p2 = project(wx + windDirX * 15, 15, wz + windDirZ * 15);
+    
+    if (p1.z > 0 && p2.z > 0) {
+      const alpha = windStrength * 0.6 * (1 - Math.abs(animOffset) / 150);
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.strokeStyle = `rgba(255,238,68,${alpha})`;
+      ctx.lineWidth = Math.max(1, p1.s * 3);
+      ctx.stroke();
+      
+      // Arrow head
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const len = Math.hypot(dx, dy);
+      if (len > 2) {
+        const nx = dx / len, ny = dy / len;
+        ctx.beginPath();
+        ctx.moveTo(p2.x, p2.y);
+        ctx.lineTo(p2.x - nx * 8 - ny * 4, p2.y - ny * 8 + nx * 4);
+        ctx.moveTo(p2.x, p2.y);
+        ctx.lineTo(p2.x - nx * 8 + ny * 4, p2.y - ny * 8 - nx * 4);
+        ctx.strokeStyle = `rgba(255,238,68,${alpha})`;
+        ctx.lineWidth = Math.max(1, p1.s * 2);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawMarchRoute(points, color, time, progress) {
+  if (points.length < 2) return;
+  
+  const visibleLen = Math.floor(points.length * progress);
+  if (visibleLen < 2) return;
+  
+  // Route line with dashes
+  ctx.setLineDash([8, 6]);
+  ctx.beginPath();
+  const p0 = project(points[0].x, 3, points[0].z);
+  ctx.moveTo(p0.x, p0.y);
+  
+  for (let i = 1; i < visibleLen; i++) {
+    const p = project(points[i].x, 3, points[i].z);
+    ctx.lineTo(p.x, p.y);
+  }
+  
+  // Animated dash offset
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.7;
+  ctx.lineDashOffset = -time * 30;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  
+  // Arrow at end
+  if (visibleLen >= 2) {
+    const last = project(points[visibleLen-1].x, 3, points[visibleLen-1].z);
+    const prev = project(points[visibleLen-2].x, 3, points[visibleLen-2].z);
+    const dx = last.x - prev.x, dy = last.y - prev.y;
+    const len = Math.hypot(dx, dy);
+    if (len > 3) {
+      const nx = dx/len, ny = dy/len;
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(last.x - nx*10 - ny*5, last.y - ny*10 + nx*5);
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(last.x - nx*10 + ny*5, last.y - ny*10 - nx*5);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+  }
+}
+
+function drawCamp(x, z, color, label, time) {
+  const p = project(x, 5, z);
+  if (p.z < 1) return;
+  const size = 12 * p.s;
+  
+  // Tent shapes
+  for (let i = 0; i < 5; i++) {
+    const ox = (i - 2) * size * 1.8;
+    const tp = project(x + ox * 0.3, 5, z);
+    if (tp.z > 0) {
+      const ts = size * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(tp.x - ts, tp.y + ts * 0.3);
+      ctx.lineTo(tp.x, tp.y - ts * 0.8);
+      ctx.lineTo(tp.x + ts, tp.y + ts * 0.3);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.8;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+  
+  // Flag
+  const flagP = project(x, 20 + Math.sin(time * 3) * 2, z);
+  if (flagP.z > 0) {
+    const fs = 8 * flagP.s;
+    ctx.beginPath();
+    ctx.moveTo(flagP.x, flagP.y);
+    ctx.lineTo(flagP.x, flagP.y - fs * 2);
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // Flag banner
+    ctx.beginPath();
+    ctx.moveTo(flagP.x, flagP.y - fs * 2);
+    ctx.lineTo(flagP.x + fs * 1.5 + Math.sin(time*4)*fs*0.3, flagP.y - fs * 1.5);
+    ctx.lineTo(flagP.x, flagP.y - fs);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.9;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawRetreatPath(time, progress) {
+  if (progress <= 0) return;
+  
+  // Retreat route from fire area to north-west
+  const route = [
+    { x: LOC.fireAttack.x, z: LOC.fireAttack.z },
+    { x: LOC.caoFleet.x, z: LOC.caoFleet.z - 40 },
+    { x: LOC.caoCamp.x + 50, z: LOC.caoCamp.z + 20 },
+    { x: LOC.caoRetreat1.x, z: LOC.caoRetreat1.z },
+    { x: LOC.caoRetreat2.x, z: LOC.caoRetreat2.z },
+  ];
+  
+  drawMarchRoute(route, '#ff4444', time, progress);
+  
+  // Retreating soldiers
+  retreatingUnits.forEach((u, i) => {
+    const p = Math.min(1, progress * u.speed + u.progress * 0.3);
+    const idx = Math.min(route.length - 2, Math.floor(p * (route.length - 1)));
+    const t = (p * (route.length - 1)) - idx;
+    const x = lerp(route[idx].x, route[Math.min(route.length-1,idx+1)].x, t) + u.offsetX * (1 - p);
+    const z = lerp(route[idx].z, route[Math.min(route.length-1,idx+1)].z, t) + u.offsetZ * (1 - p);
+    
+    const pp = project(x, 3, z);
+    if (pp.z > 0) {
+      const s = 2 * pp.s;
+      ctx.beginPath();
+      ctx.arc(pp.x, pp.y, s, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,50,50,${0.5 + Math.random()*0.3})`;
+      ctx.fill();
+    }
+  });
+}
+
+function drawLabels(time) {
+  ctx.font = '13px "Microsoft YaHei","SimHei",sans-serif';
+  ctx.textAlign = 'center';
+  
+  const labels = [
+    { ...LOC.caoCamp, color: '#ff6666', show: true },
+    { ...LOC.sunLiuCamp, color: '#6699ff', show: true },
+    { x: LOC.caoFleet.x, z: LOC.caoFleet.z - 25, label: '曹操水寨', color: '#ff8888', show: globalTime > 6 },
+    { x: LOC.sunLiuFleet.x, z: LOC.sunLiuFleet.z + 20, label: '联军战船', color: '#88aaff', show: globalTime > 6 },
+    { x: LOC.zhugeAltar.x, z: LOC.zhugeAltar.z + 15, label: '七星坛', color: '#aaffaa', show: globalTime > 16 && globalTime < 28 },
+    { x: LOC.fireAttack.x, z: LOC.fireAttack.z + 30, label: '🔥 火攻中心', color: '#ffaa00', show: fireProgress > 0 },
+    { x: LOC.huangGai.x, z: LOC.huangGai.z + 15, label: '黄盖火船', color: '#ff8844', show: globalTime > 18 && globalTime < 28 },
+    { x: LOC.caoRetreat1.x, z: LOC.caoRetreat1.z - 15, label: '华容道', color: '#ff6666', show: globalTime > 36 },
+  ];
+  
+  labels.forEach(l => {
+    if (!l.show) return;
+    const p = project(l.x, 0, l.z);
+    if (p.z < 1 || p.y < 50 || p.y > window.innerHeight - 50) return;
+    
+    const alpha = 0.5 + Math.sin(time * 2) * 0.15;
+    const lines = l.label.split('\n');
+    lines.forEach((line, i) => {
+      ctx.fillStyle = l.color || '#fff';
+      ctx.globalAlpha = alpha + 0.3;
+      ctx.fillText(line, p.x, p.y - 10 - (lines.length - 1 - i) * 16);
     });
+    ctx.globalAlpha = 1;
+  });
 }
 
-function updateProgressBar() {
-    const totalProgress = (currentPhase + phaseProgress) / phases.length * 100;
-    document.getElementById('progressBar').style.width = totalProgress + '%';
-}
-
-function togglePlay() {
-    isPlaying = !isPlaying;
-    document.getElementById('playBtn').textContent = isPlaying ? '⏸ 暂停' : '▶ 播放';
-}
-
-function prevPhase() {
-    if (currentPhase > 0) {
-        currentPhase--;
-        phaseProgress = 0;
-        updateUI();
-        updateProgressBar();
+function drawTroopCounts(time, phase) {
+  // Draw troop numbers
+  ctx.font = 'bold 14px "Microsoft YaHei","SimHei",sans-serif';
+  ctx.textAlign = 'center';
+  
+  if (globalTime < 36) {
+    // Cao troops
+    const cp = project(LOC.caoCamp.x, 30, LOC.caoCamp.z);
+    if (cp.z > 0) {
+      ctx.fillStyle = '#ff6666';
+      ctx.globalAlpha = 0.8;
+      ctx.fillText('曹操 军', cp.x, cp.y);
+      ctx.font = '11px sans-serif';
+      ctx.fillText('约 80 万', cp.x, cp.y + 16);
+      ctx.globalAlpha = 1;
     }
-}
-
-function nextPhase() {
-    if (currentPhase < phases.length - 1) {
-        currentPhase++;
-        phaseProgress = 0;
-        updateUI();
-        updateProgressBar();
-    }
-}
-
-function goToPhase(index) {
-    currentPhase = index;
-    phaseProgress = 0;
-    updateUI();
-    updateProgressBar();
-}
-
-function seekTo(event) {
-    const rect = event.target.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const percent = x / rect.width;
-    const phase = Math.floor(percent * phases.length);
     
-    if (phase >= 0 && phase < phases.length) {
-        goToPhase(phase);
+    // Sun-Liu troops
+    const sp = project(LOC.sunLiuCamp.x, 30, LOC.sunLiuCamp.z);
+    if (sp.z > 0) {
+      ctx.font = 'bold 14px "Microsoft YaHei","SimHei",sans-serif';
+      ctx.fillStyle = '#6699ff';
+      ctx.globalAlpha = 0.8;
+      ctx.fillText('孙刘联军', sp.x, sp.y);
+      ctx.font = '11px sans-serif';
+      ctx.fillText('约 5 万', sp.x, sp.y + 16);
+      ctx.globalAlpha = 1;
     }
+  }
 }
 
-// ========== 启动 ==========
-setTimeout(() => {
-    document.getElementById('loading').style.opacity = '0';
-    setTimeout(() => {
-        document.getElementById('loading').style.display = 'none';
-    }, 1000);
-}, 2200);
+function drawStars(time) {
+  // Decorative stars in sky
+  for (let i = 0; i < 80; i++) {
+    const sx = ((i * 137.5) % window.innerWidth);
+    const sy = ((i * 97.3) % (window.innerHeight * 0.4));
+    const twinkle = 0.3 + Math.sin(time * 1.5 + i * 2.7) * 0.3;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 0.5 + Math.sin(time + i) * 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${twinkle})`;
+    ctx.fill();
+  }
+}
 
-render();
+// ======================== MAIN RENDER ========================
+function render(time) {
+  const dt = 1/60;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  
+  ctx.clearRect(0, 0, w, h);
+  
+  // Find current phase
+  currentPhase = PHASES.find(p => globalTime >= p.time && globalTime < p.end) || PHASES[PHASES.length - 1];
+  const phaseProgress = currentPhase ? (globalTime - currentPhase.time) / (currentPhase.end - currentPhase.time) : 0;
+  
+  // Camera interpolation
+  if (currentPhase) {
+    cam.tx = currentPhase.cam.x;
+    cam.ty = currentPhase.cam.y;
+    cam.tz = currentPhase.cam.z;
+    cam.trx = currentPhase.cam.rx;
+    cam.try_ = currentPhase.cam.ry;
+  }
+  
+  cam.x = lerp(cam.x, cam.tx, 0.02);
+  cam.y = lerp(cam.y, cam.ty, 0.02);
+  cam.z = lerp(cam.z, cam.tz, 0.02);
+  cam.rx = lerp(cam.rx, cam.trx, 0.02);
+  cam.ry = lerp(cam.ry, cam.try_, 0.02);
+  
+  // Camera shake during fire attack
+  if (currentPhase && currentPhase.shake && fireProgress > 0.3 && fireProgress < 0.8) {
+    cam.x += (Math.random() - 0.5) * 1.5;
+    cam.y += (Math.random() - 0.5) * 1;
+  }
+  
+  // Compute fire progress
+  if (globalTime >= 24 && globalTime < 28) {
+    fireProgress = clamp((globalTime - 24) / 4, 0, 1);
+  } else if (globalTime >= 28) {
+    fireProgress = 1;
+  } else {
+    fireProgress = 0;
+  }
+  
+  // Wind strength
+  let windStrength = 0;
+  if (globalTime >= 18 && globalTime < 24) {
+    windStrength = (globalTime - 18) / 6;
+  } else if (globalTime >= 24) {
+    windStrength = 1;
+  }
+  
+  // Huang Gai ship progress
+  let huangGaiProgress = 0;
+  if (globalTime >= 20 && globalTime < 26) {
+    huangGaiProgress = clamp((globalTime - 20) / 6, 0, 1);
+  } else if (globalTime >= 26) {
+    huangGaiProgress = 1;
+  }
+  
+  // Retreat progress
+  let retreatProgress = 0;
+  if (globalTime >= 36 && globalTime < 46) {
+    retreatProgress = clamp((globalTime - 36) / 8, 0, 1);
+  } else if (globalTime >= 46) {
+    retreatProgress = 1;
+  }
+  
+  // ---- DRAW SCENE ----
+  drawStars(time);
+  drawGround();
+  drawMountains();
+  drawBanks();
+  drawRiver(time);
+  
+  // March routes
+  const caoRoute = [
+    { x: -300, z: -120 },
+    { x: -200, z: -100 },
+    { x: -100, z: -90 },
+    { x: 0, z: -80 },
+    { x: 50, z: -60 },
+    { x: LOC.caoCamp.x, z: LOC.caoCamp.z },
+  ];
+  
+  const sunLiuRoute = [
+    { x: 300, z: 120 },
+    { x: 250, z: 100 },
+    { x: 220, z: 80 },
+    { x: LOC.sunLiuCamp.x, z: LOC.sunLiuCamp.z },
+  ];
+  
+  if (globalTime < 8) {
+    drawMarchRoute(caoRoute, '#ff4444', time, clamp(globalTime / 6, 0, 1));
+    drawMarchRoute(sunLiuRoute, '#4488ff', time, clamp(globalTime / 5, 0, 1));
+  } else {
+    drawMarchRoute(caoRoute, '#ff4444', time, 1);
+    drawMarchRoute(sunLiuRoute, '#4488ff', time, 1);
+  }
+  
+  // Camps
+  drawCamp(LOC.caoCamp.x, LOC.caoCamp.z, C.caoRed, '曹操', time);
+  drawCamp(LOC.sunLiuCamp.x, LOC.sunLiuCamp.z, C.sunBlue, '孙刘', time);
+  
+  // Seven Star Altar (Zhuge Liang)
+  if (globalTime >= 16 && globalTime < 28) {
+    const altarP = project(LOC.zhugeAltar.x, 0, LOC.zhugeAltar.z);
+    if (altarP.z > 0) {
+      const as = 10 * altarP.s;
+      // Altar base
+      ctx.beginPath();
+      ctx.arc(altarP.x, altarP.y, as, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(100,200,100,0.3)';
+      ctx.fill();
+      ctx.strokeStyle = '#88ff88';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      
+      // Rotating lights
+      for (let i = 0; i < 7; i++) {
+        const angle = time * 2 + (i / 7) * Math.PI * 2;
+        const lx = altarP.x + Math.cos(angle) * as * 0.7;
+        const ly = altarP.y + Math.sin(angle) * as * 0.4;
+        ctx.beginPath();
+        ctx.arc(lx, ly, 2 + Math.sin(time * 3 + i) * 1, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${120 + i * 30}, 100%, 70%)`;
+        ctx.fill();
+      }
+    }
+  }
+  
+  // Chained fleet & fire
+  drawChainedFleet(time, fireProgress);
+  drawHuangGaiShip(time, huangGaiProgress);
+  drawFireEffect(time, fireProgress);
+  
+  // Wind visualization
+  drawWindArrows(time, windStrength);
+  
+  // Retreat
+  if (globalTime >= 34) {
+    drawRetreatPath(time, retreatProgress);
+  }
+  
+  // Labels and info
+  drawLabels(time);
+  drawTroopCounts(time, currentPhase);
+  
+  // ---- UI Updates ----
+  if (currentPhase) {
+    document.getElementById('phase-label').textContent = currentPhase.name;
+    document.getElementById('event-text').innerHTML = currentPhase.text;
+  }
+  
+  const totalDuration = PHASES[PHASES.length - 1].end;
+  document.getElementById('progress-fill').style.width = `${(globalTime / totalDuration) * 100}%`;
+}
+
+// ======================== ANIMATION LOOP ========================
+let lastFrameTime = 0;
+function animate(timestamp) {
+  if (!lastFrameTime) lastFrameTime = timestamp;
+  const dt = (timestamp - lastFrameTime) / 1000;
+  lastFrameTime = timestamp;
+  
+  if (playing) {
+    globalTime += dt * speed;
+    const totalDuration = PHASES[PHASES.length - 1].end;
+    if (globalTime >= totalDuration) {
+      globalTime = totalDuration;
+      playing = false;
+      document.getElementById('btn-play').textContent = '▶ 重新播放';
+    }
+  }
+  
+  render(timestamp / 1000);
+  requestAnimationFrame(animate);
+}
+
+// ======================== CONTROLS ========================
+function togglePlay() {
+  if (globalTime >= PHASES[PHASES.length - 1].end) {
+    resetDemo();
+  }
+  playing = !playing;
+  document.getElementById('btn-play').textContent = playing ? '⏸ 暂停' : '▶ 继续';
+}
+
+function setSpeed(s) {
+  speed = s;
+  document.querySelectorAll('#controls button').forEach(b => b.classList.remove('active'));
+}
+
+function resetDemo() {
+  globalTime = 0;
+  playing = false;
+  fireProgress = 0;
+  initShips();
+  document.getElementById('btn-play').textContent = '▶ 开始演示';
+}
+
+// Start animation
+requestAnimationFrame(animate);
 </script>
 </body>
 </html>
