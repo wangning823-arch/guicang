@@ -1,1381 +1,1152 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>赤壁之战 3D 俯瞰演示</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            overflow: hidden;
-            background-color: #1a1a2e;
-            font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
-        }
-        #container {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-        #ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: white;
-            z-index: 100;
-            pointer-events: none;
-        }
-        #title {
-            font-size: 32px;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            margin-bottom: 10px;
-        }
-        #subtitle {
-            font-size: 18px;
-            opacity: 0.8;
-            margin-bottom: 20px;
-        }
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            color: white;
-            background: rgba(0,0,0,0.7);
-            padding: 15px;
-            border-radius: 10px;
-            pointer-events: auto;
-            max-width: 300px;
-        }
-        #controls h3 {
-            margin-bottom: 10px;
-            color: #ffd700;
-        }
-        .control-btn {
-            background: linear-gradient(45deg, #c41e3a, #ff6b6b);
-            border: none;
-            color: white;
-            padding: 10px 15px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s;
-        }
-        .control-btn:hover {
-            transform: scale(1.05);
-        }
-        .control-btn.active {
-            background: linear-gradient(45deg, #ffd700, #ff8c00);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
-        }
-        #timeline {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 300px;
-            background: rgba(0,0,0,0.7);
-            padding: 15px;
-            border-radius: 10px;
-            color: white;
-        }
-        #timeline h3 {
-            margin-bottom: 10px;
-            color: #ffd700;
-        }
-        #progress {
-            width: 100%;
-            height: 10px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            margin-bottom: 10px;
-            overflow: hidden;
-        }
-        #progress-bar {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, #c41e3a, #ff6b6b);
-            border-radius: 5px;
-            transition: width 0.3s;
-        }
-        #phase-text {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-        #legend {
-            position: absolute;
-            top: 100px;
-            left: 20px;
-            background: rgba(0,0,0,0.7);
-            padding: 15px;
-            border-radius: 10px;
-            color: white;
-            pointer-events: none;
-        }
-        #legend h3 {
-            margin-bottom: 10px;
-            color: #ffd700;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin: 8px 0;
-        }
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            margin-right: 10px;
-            border-radius: 3px;
-        }
-        #instructions {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.7);
-            padding: 15px;
-            border-radius: 10px;
-            color: white;
-            pointer-events: none;
-            font-size: 14px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赤壁之战 · 3D 俯瞰演示</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #000; font-family: 'Microsoft YaHei', sans-serif; }
+canvas { display: block; }
+
+#loading {
+  position: fixed; inset: 0; z-index: 1000;
+  background: #0a0a0a;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 1s;
+}
+#loading h1 {
+  font-size: 48px; color: #c8a45a;
+  text-shadow: 0 0 30px rgba(200,164,90,0.5);
+  letter-spacing: 12px; margin-bottom: 20px;
+}
+#loading p { color: #888; font-size: 16px; letter-spacing: 4px; }
+#loading .bar {
+  width: 300px; height: 2px; background: #333;
+  margin-top: 30px; border-radius: 1px; overflow: hidden;
+}
+#loading .bar div {
+  width: 0%; height: 100%; background: #c8a45a;
+  transition: width 0.3s;
+}
+
+#timeline {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  z-index: 100; padding: 0 40px 20px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.9));
+}
+#timeline-bar {
+  width: 100%; height: 4px; background: rgba(255,255,255,0.1);
+  border-radius: 2px; cursor: pointer; position: relative;
+  margin-bottom: 12px;
+}
+#timeline-progress {
+  height: 100%; background: linear-gradient(90deg, #c8a45a, #e8c96a);
+  border-radius: 2px; width: 0%; transition: width 0.1s;
+}
+#timeline-markers {
+  position: absolute; top: -3px; left: 0; right: 0; height: 10px;
+}
+.timeline-marker {
+  position: absolute; width: 10px; height: 10px;
+  border-radius: 50%; background: #555; top: -3px;
+  transform: translateX(-50%); cursor: pointer;
+  transition: all 0.3s;
+}
+.timeline-marker.active { background: #c8a45a; box-shadow: 0 0 10px rgba(200,164,90,0.8); }
+.timeline-marker:hover { transform: translateX(-50%) scale(1.5); }
+
+#controls {
+  display: flex; align-items: center; gap: 20px;
+  color: #ccc; font-size: 13px;
+}
+#controls button {
+  background: none; border: 1px solid rgba(200,164,90,0.4);
+  color: #c8a45a; padding: 6px 16px; border-radius: 4px;
+  cursor: pointer; font-size: 13px; transition: all 0.3s;
+}
+#controls button:hover {
+  background: rgba(200,164,90,0.15);
+  border-color: #c8a45a;
+}
+#controls button.active {
+  background: rgba(200,164,90,0.3);
+  border-color: #c8a45a;
+}
+
+#event-title {
+  position: fixed; top: 40px; left: 50%; transform: translateX(-50%);
+  z-index: 100; text-align: center; pointer-events: none;
+}
+#event-title h2 {
+  font-size: 28px; color: #fff;
+  text-shadow: 0 0 20px rgba(0,0,0,0.8), 0 2px 10px rgba(0,0,0,0.5);
+  letter-spacing: 6px; opacity: 0; transition: opacity 0.8s;
+}
+#event-title p {
+  font-size: 14px; color: #c8a45a; margin-top: 8px;
+  letter-spacing: 3px; opacity: 0; transition: opacity 0.8s 0.3s;
+}
+
+#legend {
+  position: fixed; top: 40px; right: 30px; z-index: 100;
+  background: rgba(0,0,0,0.7); border: 1px solid rgba(200,164,90,0.2);
+  border-radius: 8px; padding: 16px 20px; color: #ccc; font-size: 12px;
+}
+#legend h3 {
+  color: #c8a45a; font-size: 14px; margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 8px; margin: 6px 0;
+}
+.legend-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+}
+
+#wind-indicator {
+  position: fixed; top: 40px; left: 30px; z-index: 100;
+  width: 100px; height: 100px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(200,164,90,0.2);
+  border-radius: 50%;
+}
+#wind-arrow {
+  position: absolute; top: 50%; left: 50%;
+  width: 3px; height: 36px; background: #5af;
+  transform-origin: bottom center;
+  transform: translate(-50%, -100%) rotate(0deg);
+  transition: transform 1s ease;
+  border-radius: 2px;
+}
+#wind-arrow::after {
+  content: ''; position: absolute; top: -6px; left: -4px;
+  border-left: 5.5px solid transparent;
+  border-right: 5.5px solid transparent;
+  border-bottom: 10px solid #5af;
+}
+#wind-label {
+  position: absolute; bottom: -22px; left: 50%;
+  transform: translateX(-50%);
+  color: #5af; font-size: 11px; white-space: nowrap;
+}
+#wind-title {
+  position: absolute; top: -20px; left: 50%;
+  transform: translateX(-50%);
+  color: #888; font-size: 11px; white-space: nowrap;
+}
+</style>
 </head>
 <body>
-    <div id="container"></div>
-    
-    <div id="ui">
-        <div id="title">赤壁之战</div>
-        <div id="subtitle">公元208年 · 孙刘联军大败曹操</div>
-    </div>
-    
-    <div id="controls">
-        <h3>演示控制</h3>
-        <button class="control-btn active" id="btn-overview">全景俯瞰</button>
-        <button class="control-btn" id="btn-formations">军队部署</button>
-        <button class="control-btn" id="btn-fire">火攻开始</button>
-        <button class="control-btn" id="btn-retreat">曹操败走</button>
-        <button class="control-btn" id="btn-auto">自动演示</button>
-    </div>
-    
-    <div id="timeline">
-        <h3>战役进程</h3>
-        <div id="progress">
-            <div id="progress-bar"></div>
-        </div>
-        <div id="phase-text">准备阶段</div>
-    </div>
-    
-    <div id="legend">
-        <h3>图例</h3>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #c41e3a;"></div>
-            <div>曹军</div>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #1e90ff;"></div>
-            <div>孙刘联军</div>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #ff8c00;"></div>
-            <div>火船</div>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #32cd32;"></div>
-            <div>东南风</div>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background: #ff4500;"></div>
-            <div>火势蔓延</div>
-        </div>
-    </div>
-    
-    <div id="instructions">
-        <p>鼠标拖动：旋转视角</p>
-        <p>滚轮：缩放</p>
-        <p>右键拖动：平移</p>
-        <p>点击按钮切换视角</p>
-    </div>
 
-    <script>
-        // 场景设置
-        let scene, camera, renderer, controls;
-        let composer;
-        let clock = new THREE.Clock();
-        let animationTime = 0;
-        let phase = 'overview'; // overview, formations, fire, retreat
-        let autoPlay = false;
-        
-        // 军队和元素组
-        let caoArmyGroup = new THREE.Group();
-        let sunLiuArmyGroup = new THREE.Group();
-        let shipsGroup = new THREE.Group();
-        let fireGroup = new THREE.Group();
-        let windParticles = new THREE.Group();
-        let terrainGroup = new THREE.Group();
-        let pathLines = [];
-        
-        // 颜色定义
-        const CAO_COLOR = 0xc41e3a; // 曹军红色
-        const SUN_LIU_COLOR = 0x1e90ff; // 孙刘联军蓝色
-        const FIRE_COLOR = 0xff8c00; // 火焰橙色
-        const WIND_COLOR = 0x32cd32; // 东南风绿色
-        const WATER_COLOR = 0x1a5276; // 江水深蓝
-        const TERRAIN_COLOR = 0x228b22; // 地形绿色
-        
-        // 初始化场景
-        function init() {
-            // 场景
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a1a2e);
-            scene.fog = new THREE.Fog(0x1a1a2e, 100, 500);
-            
-            // 相机
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 80, 100);
-            camera.lookAt(0, 0, 0);
-            
-            // 渲染器
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2;
-            document.getElementById('container').appendChild(renderer.domElement);
-            
-            // 控制器
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.maxPolarAngle = Math.PI / 2.1;
-            controls.minDistance = 30;
-            controls.maxDistance = 300;
-            
-            // 后处理
-            setupPostProcessing();
-            
-            // 灯光
-            setupLights();
-            
-            // 创建场景元素
-            createTerrain();
-            createWater();
-            createArmies();
-            createShips();
-            createPathLines();
-            createWindSystem();
-            
-            // 事件监听
-            window.addEventListener('resize', onWindowResize);
-            setupUIControls();
-            
-            // 开始动画
-            animate();
-        }
-        
-        function setupPostProcessing() {
-            composer = new THREE.EffectComposer(renderer);
-            
-            const renderPass = new THREE.RenderPass(scene, camera);
-            composer.addPass(renderPass);
-            
-            const bloomPass = new THREE.UnrealBloomPass(
-                new THREE.Vector2(window.innerWidth, window.innerHeight),
-                0.5, 0.4, 0.85
-            );
-            bloomPass.threshold = 0.1;
-            bloomPass.strength = 0.8;
-            bloomPass.radius = 0.5;
-            composer.addPass(bloomPass);
-        }
-        
-        function setupLights() {
-            // 环境光
-            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-            scene.add(ambientLight);
-            
-            // 主方向光（模拟太阳）
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-            directionalLight.position.set(50, 100, 50);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
-            directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 500;
-            directionalLight.shadow.camera.left = -150;
-            directionalLight.shadow.camera.right = 150;
-            directionalLight.shadow.camera.top = 150;
-            directionalLight.shadow.camera.bottom = -150;
-            scene.add(directionalLight);
-            
-            // 半球光
-            const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x228b22, 0.6);
-            scene.add(hemisphereLight);
-            
-            // 点光源（用于火焰效果）
-            const fireLight = new THREE.PointLight(0xff8c00, 0, 100);
-            fireLight.position.set(0, 10, 0);
-            fireLight.name = 'fireLight';
-            scene.add(fireLight);
-        }
-        
-        function createTerrain() {
-            // 创建长江两岸地形
-            const terrainMaterial = new THREE.MeshPhongMaterial({
-                color: TERRAIN_COLOR,
-                flatShading: true,
-                transparent: true,
-                opacity: 0.8
-            });
-            
-            // 北岸（曹军一侧）
-            const northTerrain = createHillyTerrain(200, 50, 100, terrainMaterial);
-            northTerrain.position.set(0, 0, -80);
-            terrainGroup.add(northTerrain);
-            
-            // 南岸（孙刘联军一侧）
-            const southTerrain = createHillyTerrain(200, 50, 100, terrainMaterial);
-            southTerrain.position.set(0, 0, 80);
-            terrainGroup.add(southTerrain);
-            
-            // 添加山脉轮廓
-            const mountainMaterial = new THREE.MeshPhongMaterial({
-                color: 0x2d5016,
-                flatShading: true
-            });
-            
-            // 赤壁山
-            const chibiMountain = createMountain(30, 25, mountainMaterial);
-            chibiMountain.position.set(60, 0, 70);
-            terrainGroup.add(chibiMountain);
-            
-            // 乌林
-            const wulinMountain = createMountain(25, 20, mountainMaterial);
-            wulinMountain.position.set(-40, 0, -60);
-            terrainGroup.add(wulinMountain);
-            
-            scene.add(terrainGroup);
-        }
-        
-        function createHillyTerrain(width, height, depth, material) {
-            const geometry = new THREE.PlaneGeometry(width, depth, 20, 20);
-            
-            // 创建起伏地形
-            const vertices = geometry.attributes.position;
-            for (let i = 0; i < vertices.count; i++) {
-                const x = vertices.getX(i);
-                const z = vertices.getY(i);
-                
-                // 计算高度（使用多个正弦波叠加）
-                const height1 = Math.sin(x * 0.1) * Math.cos(z * 0.1) * 5;
-                const height2 = Math.sin(x * 0.05 + 1) * Math.cos(z * 0.07) * 8;
-                const height3 = Math.sin(x * 0.02 + 2) * Math.cos(z * 0.03) * 12;
-                
-                vertices.setZ(i, height1 + height2 + height3);
-            }
-            
-            geometry.computeVertexNormals();
-            
-            const terrain = new THREE.Mesh(geometry, material);
-            terrain.rotation.x = -Math.PI / 2;
-            terrain.receiveShadow = true;
-            
-            return terrain;
-        }
-        
-        function createMountain(radius, height, material) {
-            const geometry = new THREE.ConeGeometry(radius, height, 8);
-            const mountain = new THREE.Mesh(geometry, material);
-            mountain.position.y = height / 2;
-            mountain.castShadow = true;
-            mountain.receiveShadow = true;
-            
-            return mountain;
-        }
-        
-        function createWater() {
-            // 创建长江江面
-            const waterGeometry = new THREE.PlaneGeometry(300, 150, 50, 50);
-            const waterMaterial = new THREE.MeshPhongMaterial({
-                color: WATER_COLOR,
-                transparent: true,
-                opacity: 0.8,
-                shininess: 100,
-                specular: 0x4488aa,
-                flatShading: true
-            });
-            
-            const water = new THREE.Mesh(waterGeometry, waterMaterial);
-            water.rotation.x = -Math.PI / 2;
-            water.position.y = -0.5;
-            water.receiveShadow = true;
-            water.name = 'water';
-            
-            // 添加波浪效果
-            const vertices = waterGeometry.attributes.position;
-            for (let i = 0; i < vertices.count; i++) {
-                const x = vertices.getX(i);
-                const z = vertices.getY(i);
-                vertices.setZ(i, Math.sin(x * 0.1) * Math.cos(z * 0.1) * 0.5);
-            }
-            
-            scene.add(water);
-            
-            // 添加河流边界标记
-            const riverbankMaterial = new THREE.MeshPhongMaterial({
-                color: 0x8b4513,
-                transparent: true,
-                opacity: 0.6
-            });
-            
-            // 北岸边界
-            const northBank = new THREE.Mesh(
-                new THREE.BoxGeometry(300, 2, 5),
-                riverbankMaterial
-            );
-            northBank.position.set(0, 0.5, -75);
-            scene.add(northBank);
-            
-            // 南岸边界
-            const southBank = new THREE.Mesh(
-                new THREE.BoxGeometry(300, 2, 5),
-                riverbankMaterial
-            );
-            southBank.position.set(0, 0.5, 75);
-            scene.add(southBank);
-        }
-        
-        function createArmies() {
-            // 创建曹军（北岸）
-            createArmyGroup(caoArmyGroup, CAO_COLOR, -60, -40, 50, 30, '曹军');
-            
-            // 创建孙刘联军（南岸）
-            createArmyGroup(sunLiuArmyGroup, SUN_LIU_COLOR, 40, 60, 40, 25, '孙刘联军');
-            
-            scene.add(caoArmyGroup);
-            scene.add(sunLiuArmyGroup);
-        }
-        
-        function createArmyGroup(group, color, x, z, width, depth, name) {
-            // 创建军阵
-            const rows = Math.floor(depth / 4);
-            const cols = Math.floor(width / 4);
-            
-            for (let i = 0; i < rows; i++) {
-                for (let j = 0; j < cols; j++) {
-                    // 士兵（简化为小立方体）
-                    const soldierGeometry = new THREE.BoxGeometry(1.5, 2, 1.5);
-                    const soldierMaterial = new THREE.MeshPhongMaterial({
-                        color: color,
-                        transparent: true,
-                        opacity: 0.9
-                    });
-                    
-                    const soldier = new THREE.Mesh(soldierGeometry, soldierMaterial);
-                    soldier.position.set(
-                        x + j * 4 - (cols * 4) / 2,
-                        1,
-                        z + i * 4 - (rows * 4) / 2
-                    );
-                    soldier.castShadow = true;
-                    soldier.receiveShadow = true;
-                    
-                    group.add(soldier);
-                    
-                    // 旗帜（每5个士兵一面）
-                    if (i % 3 === 0 && j % 4 === 0) {
-                        const flag = createFlag(color);
-                        flag.position.set(
-                            soldier.position.x,
-                            soldier.position.y + 2,
-                            soldier.position.z
-                        );
-                        group.add(flag);
-                    }
-                }
-            }
-            
-            // 添加将领帐篷
-            const tent = createTent(color);
-            tent.position.set(x, 2, z);
-            group.add(tent);
-        }
-        
-        function createFlag(color) {
-            const group = new THREE.Group();
-            
-            // 旗杆
-            const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 6, 8);
-            const poleMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 });
-            const pole = new THREE.Mesh(poleGeometry, poleMaterial);
-            pole.position.y = 3;
-            group.add(pole);
-            
-            // 旗帜
-            const flagGeometry = new THREE.PlaneGeometry(3, 2);
-            const flagMaterial = new THREE.MeshPhongMaterial({
-                color: color,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0.9
-            });
-            const flag = new THREE.Mesh(flagGeometry, flagMaterial);
-            flag.position.set(1.5, 5, 0);
-            flag.rotation.y = Math.PI / 4;
-            group.add(flag);
-            
-            return group;
-        }
-        
-        function createTent(color) {
-            const group = new THREE.Group();
-            
-            // 帐篷主体
-            const tentGeometry = new THREE.ConeGeometry(5, 4, 6);
-            const tentMaterial = new THREE.MeshPhongMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.8
-            });
-            const tent = new THREE.Mesh(tentGeometry, tentMaterial);
-            tent.position.y = 2;
-            tent.castShadow = true;
-            group.add(tent);
-            
-            // 帐篷入口
-            const entranceGeometry = new THREE.BoxGeometry(2, 2, 1);
-            const entranceMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
-            const entrance = new THREE.Mesh(entranceGeometry, entranceMaterial);
-            entrance.position.set(0, 1, 4);
-            group.add(entrance);
-            
-            return group;
-        }
-        
-        function createShips() {
-            // 创建曹操的连环船阵
-            createLinkedShips();
-            
-            // 创建黄盖的火船
-            createFireShips();
-            
-            // 创建孙刘联军的战船
-            createSunLiuShips();
-        }
-        
-        function createLinkedShips() {
-            const shipGroup = new THREE.Group();
-            shipGroup.name = 'linkedShips';
-            
-            // 创建连环船阵（3x5的船阵）
-            for (let row = 0; row < 3; row++) {
-                for (let col = 0; col < 5; col++) {
-                    const ship = createShip(CAO_COLOR, 8, 3, 12);
-                    ship.position.set(
-                        col * 10 - 20,
-                        0.5,
-                        row * 8 - 8
-                    );
-                    ship.rotation.y = Math.PI / 2; // 船头朝东
-                    shipGroup.add(ship);
-                    
-                    // 连接铁索（除了最后一列）
-                    if (col < 4) {
-                        const chain = createChain();
-                        chain.position.set(
-                            col * 10 - 15,
-                            1,
-                            row * 8 - 8
-                        );
-                        shipGroup.add(chain);
-                    }
-                }
-            }
-            
-            shipsGroup.add(shipGroup);
-            scene.add(shipsGroup);
-        }
-        
-        function createFireShips() {
-            const fireShipGroup = new THREE.Group();
-            fireShipGroup.name = 'fireShips';
-            
-            // 黄盖的火船（3艘）
-            for (let i = 0; i < 3; i++) {
-                const ship = createShip(FIRE_COLOR, 6, 2, 10);
-                ship.position.set(
-                    -50,
-                    0.5,
-                    20 + i * 10
-                );
-                ship.rotation.y = Math.PI / 2; // 朝向北岸
-                fireShipGroup.add(ship);
-                
-                // 船上的易燃物
-                const bundleGeometry = new THREE.BoxGeometry(3, 2, 6);
-                const bundleMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 });
-                const bundle = new THREE.Mesh(bundleGeometry, bundleMaterial);
-                bundle.position.set(-50, 2, 20 + i * 10);
-                fireShipGroup.add(bundle);
-            }
-            
-            shipsGroup.add(fireShipGroup);
-        }
-        
-        function createSunLiuShips() {
-            const sunLiuShipGroup = new THREE.Group();
-            sunLiuShipGroup.name = 'sunLiuShips';
-            
-            // 孙刘联军战船
-            for (let i = 0; i < 8; i++) {
-                const ship = createShip(SUN_LIU_COLOR, 7, 2.5, 11);
-                ship.position.set(
-                    30 + i * 5,
-                    0.5,
-                    40 + Math.sin(i) * 5
-                );
-                ship.rotation.y = Math.PI / 2;
-                sunLiuShipGroup.add(ship);
-            }
-            
-            shipsGroup.add(sunLiuShipGroup);
-        }
-        
-        function createShip(color, width, height, length) {
-            const group = new THREE.Group();
-            
-            // 船体
-            const hullGeometry = new THREE.BoxGeometry(length, height, width);
-            const hullMaterial = new THREE.MeshPhongMaterial({
-                color: 0x8b4513,
-                transparent: true,
-                opacity: 0.9
-            });
-            const hull = new THREE.Mesh(hullGeometry, hullMaterial);
-            hull.position.y = height / 2;
-            hull.castShadow = true;
-            hull.receiveShadow = true;
-            group.add(hull);
-            
-            // 甲板
-            const deckGeometry = new THREE.BoxGeometry(length * 0.9, 0.2, width * 0.9);
-            const deckMaterial = new THREE.MeshPhongMaterial({ color: 0xdeb887 });
-            const deck = new THREE.Mesh(deckGeometry, deckMaterial);
-            deck.position.y = height;
-            deck.castShadow = true;
-            group.add(deck);
-            
-            // 船楼
-            const cabinGeometry = new THREE.BoxGeometry(length * 0.4, height * 1.5, width * 0.8);
-            const cabinMaterial = new THREE.MeshPhongMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.8
-            });
-            const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
-            cabin.position.set(-length * 0.2, height * 2, 0);
-            cabin.castShadow = true;
-            group.add(cabin);
-            
-            // 桅杆
-            const mastGeometry = new THREE.CylinderGeometry(0.2, 0.2, height * 4, 8);
-            const mastMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 });
-            const mast = new THREE.Mesh(mastGeometry, mastMaterial);
-            mast.position.set(0, height * 3, 0);
-            mast.castShadow = true;
-            group.add(mast);
-            
-            // 旗帜
-            const flagGeometry = new THREE.PlaneGeometry(4, 3);
-            const flagMaterial = new THREE.MeshPhongMaterial({
-                color: color,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0.9
-            });
-            const flag = new THREE.Mesh(flagGeometry, flagMaterial);
-            flag.position.set(0, height * 5, 2);
-            flag.rotation.y = Math.PI / 4;
-            group.add(flag);
-            
-            return group;
-        }
-        
-        function createChain() {
-            const chainGroup = new THREE.Group();
-            
-            // 创建铁索
-            const chainGeometry = new THREE.CylinderGeometry(0.15, 0.15, 10, 8);
-            const chainMaterial = new THREE.MeshPhongMaterial({ color: 0x696969 });
-            const chain = new THREE.Mesh(chainGeometry, chainMaterial);
-            chain.rotation.z = Math.PI / 2;
-            chain.position.y = 1;
-            chainGroup.add(chain);
-            
-            // 铁索环
-            for (let i = 0; i < 5; i++) {
-                const ringGeometry = new THREE.TorusGeometry(0.3, 0.1, 8, 16);
-                const ringMaterial = new THREE.MeshPhongMaterial({ color: 0x696969 });
-                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-                ring.position.set(i * 2 - 4, 1, 0);
-                ring.rotation.y = Math.PI / 2;
-                chainGroup.add(ring);
-            }
-            
-            return chainGroup;
-        }
-        
-        function createPathLines() {
-            // 曹操进军路线
-            const caoPath = createPathLine(
-                [new THREE.Vector3(-80, 0, -60), new THREE.Vector3(-60, 0, -40), new THREE.Vector3(-40, 0, -20)],
-                CAO_COLOR
-            );
-            pathLines.push(caoPath);
-            
-            // 黄盖火船路线
-            const firePath = createPathLine(
-                [new THREE.Vector3(-50, 0, 20), new THREE.Vector3(-30, 0, 10), new THREE.Vector3(-10, 0, 0)],
-                FIRE_COLOR
-            );
-            firePath.visible = false;
-            pathLines.push(firePath);
-            
-            // 曹操败走路线
-            const retreatPath = createPathLine(
-                [new THREE.Vector3(-40, 0, 0), new THREE.Vector3(-60, 0, -20), new THREE.Vector3(-80, 0, -40), new THREE.Vector3(-100, 0, -60)],
-                0xff0000
-            );
-            retreatPath.visible = false;
-            pathLines.push(retreatPath);
-            
-            pathLines.forEach(path => scene.add(path));
-        }
-        
-        function createPathLine(points, color) {
-            const material = new THREE.LineBasicMaterial({
-                color: color,
-                linewidth: 3,
-                transparent: true,
-                opacity: 0.8
-            });
-            
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const line = new THREE.Line(geometry, material);
-            
-            // 添加箭头
-            const arrowMaterial = new THREE.MeshPhongMaterial({ color: color });
-            
-            for (let i = 0; i < points.length - 1; i++) {
-                const start = points[i];
-                const end = points[i + 1];
-                
-                // 计算方向
-                const direction = new THREE.Vector3().subVectors(end, start).normalize();
-                const arrowGeometry = new THREE.ConeGeometry(1, 3, 8);
-                const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-                
-                arrow.position.copy(start.clone().add(end).multiplyScalar(0.5));
-                arrow.position.y = 0.5;
-                
-                // 旋转箭头使其指向正确方向
-                const arrowHelper = new THREE.ArrowHelper(direction, new THREE.Vector3(0, 0, 0), 1);
-                arrow.quaternion.copy(arrowHelper.quaternion);
-                
-                line.add(arrow);
-            }
-            
-            return line;
-        }
-        
-        function createWindSystem() {
-            // 创建东南风粒子系统
-            const particleCount = 500;
-            const particleGeometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particleCount * 3);
-            const velocities = new Float32Array(particleCount * 3);
-            
-            for (let i = 0; i < particleCount; i++) {
-                // 初始位置（东南方向）
-                positions[i * 3] = 80 + Math.random() * 40;      // x
-                positions[i * 3 + 1] = 10 + Math.random() * 20;   // y
-                positions[i * 3 + 2] = 50 + Math.random() * 30;   // z
-                
-                // 速度（指向西北方向）
-                velocities[i * 3] = -0.5 - Math.random() * 0.5;   // vx
-                velocities[i * 3 + 1] = 0;                         // vy
-                velocities[i * 3 + 2] = -0.3 - Math.random() * 0.3; // vz
-            }
-            
-            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            
-            const particleMaterial = new THREE.PointsMaterial({
-                color: WIND_COLOR,
-                size: 1.5,
-                transparent: true,
-                opacity: 0.6,
-                blending: THREE.AdditiveBlending
-            });
-            
-            const windParticlesSystem = new THREE.Points(particleGeometry, particleMaterial);
-            windParticlesSystem.name = 'windParticles';
-            windParticlesSystem.userData.velocities = velocities;
-            
-            windParticles.add(windParticlesSystem);
-            
-            // 创建风向箭头
-            for (let i = 0; i < 10; i++) {
-                const arrow = createWindArrow();
-                arrow.position.set(
-                    70 + Math.random() * 30,
-                    15 + Math.random() * 10,
-                    40 + Math.random() * 20
-                );
-                windParticles.add(arrow);
-            }
-            
-            scene.add(windParticles);
-        }
-        
-        function createWindArrow() {
-            const group = new THREE.Group();
-            
-            // 箭杆
-            const shaftGeometry = new THREE.CylinderGeometry(0.1, 0.1, 8, 8);
-            const shaftMaterial = new THREE.MeshPhongMaterial({
-                color: WIND_COLOR,
-                transparent: true,
-                opacity: 0.7
-            });
-            const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-            shaft.rotation.z = Math.PI / 2;
-            group.add(shaft);
-            
-            // 箭头
-            const headGeometry = new THREE.ConeGeometry(0.5, 2, 8);
-            const headMaterial = new THREE.MeshPhongMaterial({
-                color: WIND_COLOR,
-                transparent: true,
-                opacity: 0.7
-            });
-            const head = new THREE.Mesh(headGeometry, headMaterial);
-            head.position.x = -5;
-            head.rotation.z = -Math.PI / 2;
-            group.add(head);
-            
-            return group;
-        }
-        
-        function setupUIControls() {
-            // 按钮事件
-            document.getElementById('btn-overview').addEventListener('click', () => {
-                setPhase('overview');
-                setButtonActive('btn-overview');
-            });
-            
-            document.getElementById('btn-formations').addEventListener('click', () => {
-                setPhase('formations');
-                setButtonActive('btn-formations');
-            });
-            
-            document.getElementById('btn-fire').addEventListener('click', () => {
-                setPhase('fire');
-                setButtonActive('btn-fire');
-            });
-            
-            document.getElementById('btn-retreat').addEventListener('click', () => {
-                setPhase('retreat');
-                setButtonActive('btn-retreat');
-            });
-            
-            document.getElementById('btn-auto').addEventListener('click', () => {
-                autoPlay = !autoPlay;
-                const btn = document.getElementById('btn-auto');
-                btn.classList.toggle('active', autoPlay);
-                
-                if (autoPlay) {
-                    startAutoPlay();
-                }
-            });
-        }
-        
-        function setButtonActive(buttonId) {
-            const buttons = document.querySelectorAll('.control-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            document.getElementById(buttonId).classList.add('active');
-        }
-        
-        function setPhase(newPhase) {
-            phase = newPhase;
-            
-            // 根据阶段更新场景
-            switch (phase) {
-                case 'overview':
-                    moveCameraTo(new THREE.Vector3(0, 80, 100), new THREE.Vector3(0, 0, 0));
-                    updatePhaseText('全景俯瞰');
-                    updateProgress(0);
-                    hideAllElements();
-                    break;
-                    
-                case 'formations':
-                    moveCameraTo(new THREE.Vector3(-30, 40, 60), new THREE.Vector3(0, 0, 0));
-                    updatePhaseText('军队部署');
-                    updateProgress(25);
-                    showFormations();
-                    break;
-                    
-                case 'fire':
-                    moveCameraTo(new THREE.Vector3(10, 30, 40), new THREE.Vector3(-20, 0, 0));
-                    updatePhaseText('火攻开始');
-                    updateProgress(60);
-                    showFireAttack();
-                    break;
-                    
-                case 'retreat':
-                    moveCameraTo(new THREE.Vector3(-60, 50, 80), new THREE.Vector3(-80, 0, -40));
-                    updatePhaseText('曹操败走');
-                    updateProgress(100);
-                    showRetreat();
-                    break;
-            }
-        }
-        
-        function moveCameraTo(position, target) {
-            // 平滑移动相机
-            const startPos = camera.position.clone();
-            const startTarget = controls.target.clone();
-            const duration = 2000;
-            const startTime = Date.now();
-            
-            function animateCamera() {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                
-                // 使用缓动函数
-                const eased = easeInOutCubic(progress);
-                
-                camera.position.lerpVectors(startPos, position, eased);
-                controls.target.lerpVectors(startTarget, target, eased);
-                controls.update();
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animateCamera);
-                }
-            }
-            
-            animateCamera();
-        }
-        
-        function easeInOutCubic(t) {
-            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-        }
-        
-        function updatePhaseText(text) {
-            document.getElementById('phase-text').textContent = text;
-        }
-        
-        function updateProgress(percent) {
-            document.getElementById('progress-bar').style.width = percent + '%';
-        }
-        
-        function hideAllElements() {
-            // 隐藏火船、火焰、败走路线
-            shipsGroup.getObjectByName('fireShips').visible = false;
-            fireGroup.visible = false;
-            pathLines[1].visible = false;
-            pathLines[2].visible = false;
-            
-            // 隐藏风粒子（但保留风向箭头）
-            windParticles.children[0].visible = false;
-        }
-        
-        function showFormations() {
-            // 显示军队部署
-            caoArmyGroup.visible = true;
-            sunLiuArmyGroup.visible = true;
-            shipsGroup.visible = true;
-            
-            // 隐藏火攻相关元素
-            shipsGroup.getObjectByName('fireShips').visible = false;
-            fireGroup.visible = false;
-            pathLines[1].visible = false;
-            pathLines[2].visible = false;
-            
-            // 显示进军路线
-            pathLines[0].visible = true;
-        }
-        
-        function showFireAttack() {
-            // 显示火攻场景
-            shipsGroup.getObjectByName('fireShips').visible = true;
-            fireGroup.visible = true;
-            
-            // 显示风粒子
-            windParticles.children[0].visible = true;
-            
-            // 显示火船路线
-            pathLines[1].visible = true;
-            pathLines[0].visible = false;
-            
-            // 创建火焰效果
-            if (fireGroup.children.length === 0) {
-                createFireEffects();
-            }
-            
-            // 更新火光
-            const fireLight = scene.getObjectByName('fireLight');
-            if (fireLight) {
-                fireLight.intensity = 3;
-                fireLight.position.set(-20, 15, 0);
-            }
-        }
-        
-        function createFireEffects() {
-            // 在连环船上创建火焰
-            const linkedShips = shipsGroup.getObjectByName('linkedShips');
-            if (linkedShips) {
-                for (let i = 0; i < 15; i++) {
-                    const fire = createFire();
-                    fire.position.set(
-                        linkedShips.position.x + (Math.random() - 0.5) * 40,
-                        5 + Math.random() * 5,
-                        linkedShips.position.z + (Math.random() - 0.5) * 20
-                    );
-                    fireGroup.add(fire);
-                }
-            }
-            
-            // 添加烟雾
-            for (let i = 0; i < 10; i++) {
-                const smoke = createSmoke();
-                smoke.position.set(
-                    -20 + (Math.random() - 0.5) * 30,
-                    10 + Math.random() * 10,
-                    (Math.random() - 0.5) * 20
-                );
-                fireGroup.add(smoke);
-            }
-            
-            scene.add(fireGroup);
-        }
-        
-        function createFire() {
-            const group = new THREE.Group();
-            
-            // 火焰粒子系统
-            const particleCount = 50;
-            const particleGeometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particleCount * 3);
-            const colors = new Float32Array(particleCount * 3);
-            
-            for (let i = 0; i < particleCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 2;
-                positions[i * 3 + 1] = Math.random() * 4;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 2;
-                
-                // 火焰颜色（红-橙-黄渐变）
-                const color = new THREE.Color();
-                color.setHSL(0.05 + Math.random() * 0.1, 1, 0.5);
-                colors[i * 3] = color.r;
-                colors[i * 3 + 1] = color.g;
-                colors[i * 3 + 2] = color.b;
-            }
-            
-            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            
-            const particleMaterial = new THREE.PointsMaterial({
-                size: 2,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending
-            });
-            
-            const fireParticles = new THREE.Points(particleGeometry, particleMaterial);
-            fireParticles.name = 'fireParticles';
-            fireParticles.userData.velocities = [];
-            
-            for (let i = 0; i < particleCount; i++) {
-                fireParticles.userData.velocities.push({
-                    x: (Math.random() - 0.5) * 0.1,
-                    y: 0.1 + Math.random() * 0.2,
-                    z: (Math.random() - 0.5) * 0.1
-                });
-            }
-            
-            group.add(fireParticles);
-            
-            return group;
-        }
-        
-        function createSmoke() {
-            const group = new THREE.Group();
-            
-            // 烟雾粒子系统
-            const particleCount = 30;
-            const particleGeometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(particleCount * 3);
-            
-            for (let i = 0; i < particleCount; i++) {
-                positions[i * 3] = (Math.random() - 0.5) * 3;
-                positions[i * 3 + 1] = Math.random() * 8;
-                positions[i * 3 + 2] = (Math.random() - 0.5) * 3;
-            }
-            
-            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            
-            const particleMaterial = new THREE.PointsMaterial({
-                color: 0x333333,
-                size: 3,
-                transparent: true,
-                opacity: 0.4,
-                blending: THREE.NormalBlending
-            });
-            
-            const smokeParticles = new THREE.Points(particleGeometry, particleMaterial);
-            smokeParticles.name = 'smokeParticles';
-            smokeParticles.userData.velocities = [];
-            
-            for (let i = 0; i < particleCount; i++) {
-                smokeParticles.userData.velocities.push({
-                    x: (Math.random() - 0.5) * 0.05,
-                    y: 0.05 + Math.random() * 0.1,
-                    z: (Math.random() - 0.5) * 0.05
-                });
-            }
-            
-            group.add(smokeParticles);
-            
-            return group;
-        }
-        
-        function showRetreat() {
-            // 显示曹操败走
-            pathLines[2].visible = true;
-            pathLines[1].visible = false;
-            pathLines[0].visible = false;
-            
-            // 更新火光强度
-            const fireLight = scene.getObjectByName('fireLight');
-            if (fireLight) {
-                fireLight.intensity = 2;
-            }
-            
-            // 添加败走动画效果
-            animateRetreat();
-        }
-        
-        function animateRetreat() {
-            const caoArmy = caoArmyGroup;
-            if (caoArmy) {
-                // 简单的撤退动画
-                const startTime = Date.now();
-                const duration = 5000;
-                
-                function updateRetreat() {
-                    const elapsed = Date.now() - startTime;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    // 移动曹军向后撤退
-                    caoArmy.position.x = -progress * 20;
-                    caoArmy.position.z = -progress * 10;
-                    
-                    // 随机抖动（模拟混乱）
-                    caoArmy.position.x += Math.sin(elapsed * 0.01) * 0.5;
-                    caoArmy.position.z += Math.cos(elapsed * 0.01) * 0.5;
-                    
-                    if (progress < 1 && phase === 'retreat') {
-                        requestAnimationFrame(updateRetreat);
-                    }
-                }
-                
-                updateRetreat();
-            }
-        }
-        
-        function startAutoPlay() {
-            let autoPhase = 0;
-            const phases = ['overview', 'formations', 'fire', 'retreat'];
-            
-            function nextAutoPhase() {
-                if (!autoPlay) return;
-                
-                setPhase(phases[autoPhase]);
-                setButtonActive('btn-' + phases[autoPhase]);
-                
-                autoPhase++;
-                if (autoPhase >= phases.length) {
-                    autoPhase = 0;
-                    setTimeout(nextAutoPhase, 5000);
-                } else {
-                    setTimeout(nextAutoPhase, 8000);
-                }
-            }
-            
-            nextAutoPhase();
-        }
-        
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            const delta = clock.getDelta();
-            animationTime += delta;
-            
-            // 更新控制器
-            controls.update();
-            
-            // 动画效果
-            animateWater();
-            animateWind();
-            animateFire();
-            animateShips();
-            
-            // 渲染
-            if (composer) {
-                composer.render();
-            } else {
-                renderer.render(scene, camera);
-            }
-        }
-        
-        function animateWater() {
-            const water = scene.getObjectByName('water');
-            if (water) {
-                const vertices = water.geometry.attributes.position;
-                for (let i = 0; i < vertices.count; i++) {
-                    const x = vertices.getX(i);
-                    const z = vertices.getY(i);
-                    
-                    // 波浪动画
-                    const wave = Math.sin(x * 0.1 + animationTime) * Math.cos(z * 0.1 + animationTime) * 0.5;
-                    vertices.setZ(i, wave);
-                }
-                vertices.needsUpdate = true;
-            }
-        }
-        
-        function animateWind() {
-            const windSystem = windParticles.children[0];
-            if (windSystem && windSystem.isPoints) {
-                const positions = windSystem.geometry.attributes.position;
-                const velocities = windSystem.userData.velocities;
-                
-                for (let i = 0; i < positions.count; i++) {
-                    let x = positions.getX(i);
-                    let y = positions.getY(i);
-                    let z = positions.getZ(i);
-                    
-                    // 更新位置
-                    x += velocities[i * 3] * 0.5;
-                    y += velocities[i * 3 + 1] * 0.5;
-                    z += velocities[i * 3 + 2] * 0.5;
-                    
-                    // 重置粒子到起点
-                    if (x < -100) {
-                        x = 80 + Math.random() * 40;
-                        y = 10 + Math.random() * 20;
-                        z = 50 + Math.random() * 30;
-                    }
-                    
-                    positions.setXYZ(i, x, y, z);
-                }
-                
-                positions.needsUpdate = true;
-            }
-            
-            // 动画风向箭头
-            windParticles.children.forEach((child, index) => {
-                if (child.isGroup && index > 0) {
-                    child.position.x -= 0.1;
-                    if (child.position.x < -100) {
-                        child.position.x = 80 + Math.random() * 30;
-                    }
-                }
-            });
-        }
-        
-        function animateFire() {
-            fireGroup.children.forEach(fire => {
-                fire.children.forEach(particleSystem => {
-                    if (particleSystem.isPoints) {
-                        const positions = particleSystem.geometry.attributes.position;
-                        const velocities = particleSystem.userData.velocities;
-                        
-                        for (let i = 0; i < positions.count; i++) {
-                            let x = positions.getX(i);
-                            let y = positions.getY(i);
-                            let z = positions.getZ(i);
-                            
-                            // 火焰向上升腾
-                            x += velocities[i].x;
-                            y += velocities[i].y;
-                            z += velocities[i].z;
-                            
-                            // 重置粒子
-                            if (y > 5) {
-                                x = (Math.random() - 0.5) * 2;
-                                y = 0;
-                                z = (Math.random() - 0.5) * 2;
-                            }
-                            
-                            positions.setXYZ(i, x, y, z);
-                        }
-                        
-                        positions.needsUpdate = true;
-                    }
-                });
-            });
-            
-            // 火光闪烁
-            const fireLight = scene.getObjectByName('fireLight');
-            if (fireLight && phase === 'fire') {
-                fireLight.intensity = 2 + Math.sin(animationTime * 10) * 0.5;
-            }
-        }
-        
-        function animateShips() {
-            // 船只轻微摇晃
-            shipsGroup.children.forEach(shipGroup => {
-                shipGroup.children.forEach(ship => {
-                    if (ship.isGroup) {
-                        ship.rotation.z = Math.sin(animationTime * 2 + ship.position.x * 0.1) * 0.05;
-                        ship.position.y = 0.5 + Math.sin(animationTime * 1.5 + ship.position.x * 0.1) * 0.3;
-                    }
-                });
-            });
-        }
-        
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            
-            if (composer) {
-                composer.setSize(window.innerWidth, window.innerHeight);
-            }
-        }
-        
-        // 初始化场景
-        init();
-        
-        // 默认显示全景
-        setTimeout(() => {
-            setPhase('overview');
-        }, 1000);
-    </script>
+<div id="loading">
+  <h1>赤 壁 之 战</h1>
+  <p>建安十三年 · 公元208年</p>
+  <div class="bar"><div id="load-bar"></div></div>
+</div>
+
+<div id="event-title">
+  <h2 id="evt-title"></h2>
+  <p id="evt-desc"></p>
+</div>
+
+<div id="wind-indicator">
+  <div id="wind-arrow"></div>
+  <div id="wind-label">西北风</div>
+  <div id="wind-title">风向</div>
+</div>
+
+<div id="legend">
+  <h3>军 势 图 例</h3>
+  <div class="legend-item"><div class="legend-dot" style="background:#e44"></div>曹操军（北）</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#48f"></div>孙刘联军（南）</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f80"></div>火船 / 火势</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff0"></div>行军路线</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#5af"></div>东南风</div>
+</div>
+
+<div id="timeline">
+  <div id="timeline-bar">
+    <div id="timeline-progress"></div>
+    <div id="timeline-markers"></div>
+  </div>
+  <div id="controls">
+    <button id="btn-play" class="active" onclick="togglePlay()">▶ 播放</button>
+    <button onclick="setSpeed(0.5)">0.5x</button>
+    <button onclick="setSpeed(1)" class="active">1x</button>
+    <button onclick="setSpeed(2)">2x</button>
+    <span id="time-display">00:00 / 03:00</span>
+    <span style="flex:1"></span>
+    <button onclick="resetDemo()">⟲ 重置</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ═══════════════════════════════════════
+// 配置
+// ═══════════════════════════════════════
+const TOTAL_DURATION = 180; // 3分钟总时长(秒)
+const EVENTS = [
+  { time: 0,   title: '对 峙',       desc: '曹操率八十万大军南下，孙刘联军联合抗敌', camera: 'overview' },
+  { time: 20,  title: '行 军',       desc: '曹操水军沿江而来，联军于赤壁南岸布阵', camera: 'march' },
+  { time: 45,  title: '连 环 船 阵', desc: '庞统献计，曹操将战船首尾相连', camera: 'ships' },
+  { time: 70,  title: '黄 盖 诈 降', desc: '黄盖致书曹操，愿率船来降', camera: 'huanggai' },
+  { time: 90,  title: '东 南 风 起', desc: '冬至夜半，东南风骤起，天助联军', camera: 'wind' },
+  { time: 105, title: '火 船 突 入', desc: '黄盖率火船冲入曹军连环船阵', camera: 'fire_ship' },
+  { time: 125, title: '大 火 蔓 延', desc: '火势顺风蔓延，曹军战船尽成火海', camera: 'fire_spread' },
+  { time: 150, title: '曹 操 败 走', desc: '曹操败走华容道，狼狈北逃', camera: 'retreat' },
+  { time: 170, title: '天 下 三 分', desc: '赤壁之战奠定三国鼎立之基', camera: 'final' },
+];
+
+// ═══════════════════════════════════════
+// Three.js 初始化
+// ═══════════════════════════════════════
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x1a1a2e, 0.003);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.8;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.maxPolarAngle = Math.PI / 2.2;
+controls.minDistance = 20;
+controls.maxDistance = 400;
+
+// ═══════════════════════════════════════
+// 灯光
+// ═══════════════════════════════════════
+const ambientLight = new THREE.AmbientLight(0x334466, 0.6);
+scene.add(ambientLight);
+
+const moonLight = new THREE.DirectionalLight(0x8899cc, 0.8);
+moonLight.position.set(100, 150, -80);
+moonLight.castShadow = true;
+moonLight.shadow.mapSize.set(2048, 2048);
+moonLight.shadow.camera.left = -200;
+moonLight.shadow.camera.right = 200;
+moonLight.shadow.camera.top = 200;
+moonLight.shadow.camera.bottom = -200;
+scene.add(moonLight);
+
+const fireLight = new THREE.PointLight(0xff6600, 0, 150);
+fireLight.position.set(0, 15, 0);
+scene.add(fireLight);
+
+// ═══════════════════════════════════════
+// 地形 - 长江与两岸
+// ═══════════════════════════════════════
+// 河水
+const waterGeo = new THREE.PlaneGeometry(600, 60, 200, 20);
+const waterMat = new THREE.MeshPhongMaterial({
+  color: 0x1a3355, specular: 0x446688, shininess: 80,
+  transparent: true, opacity: 0.9,
+});
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.rotation.x = -Math.PI / 2;
+water.position.y = 0;
+water.receiveShadow = true;
+scene.add(water);
+
+// 水面波纹动画顶点
+const waterPositions = waterGeo.attributes.position;
+
+// 河岸生成
+function createBank(y, zOffset, color, heightMap) {
+  const geo = new THREE.PlaneGeometry(600, 120, 150, 60);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y2 = pos.getY(i);
+    const distFromRiver = Math.abs(y2 + 30);
+    let h = 0;
+    h += Math.max(0, distFromRiver * 0.15);
+    h += Math.sin(x * 0.05) * 2 + Math.cos(x * 0.08 + 1) * 1.5;
+    h += Math.sin(x * 0.12 + y2 * 0.1) * 1;
+    if (heightMap) h = heightMap(x, y2, h);
+    pos.setZ(i, h);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshPhongMaterial({ color, flatShading: true });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(0, y, zOffset);
+  mesh.receiveShadow = true;
+  mesh.castShadow = true;
+  scene.add(mesh);
+  return mesh;
+}
+
+// 北岸 - 曹操（较高，有山丘）
+const northBank = createBank(0, -60, 0x4a6741, (x, y, h) => {
+  if (y > 10) h += (y - 10) * 0.3;
+  h += Math.sin(x * 0.03 + 2) * 4;
+  return h;
+});
+
+// 南岸 - 联军（较低平）
+const southBank = createBank(0, 60, 0x3d5a35, (x, y, h) => {
+  if (y < -10) h += (-10 - y) * 0.2;
+  h += Math.cos(x * 0.04) * 2;
+  return h;
+});
+
+// ═══════════════════════════════════════
+// 战船系统
+// ═══════════════════════════════════════
+const allShips = [];
+const fireShips = [];
+const linkedShips = [];
+
+function createShip(type, x, z, scale = 1) {
+  const group = new THREE.Group();
+
+  // 船体
+  const hullGeo = new THREE.BoxGeometry(6 * scale, 1.2 * scale, 2 * scale);
+  hullGeo.translate(0, 0.6 * scale, 0);
+  const hullColor = type === 'cao' ? 0x8b4513 : type === 'liu' ? 0x4a3728 : 0x654321;
+  const hullMat = new THREE.MeshPhongMaterial({ color: hullColor });
+  const hull = new THREE.Mesh(hullGeo, hullMat);
+  hull.castShadow = true;
+  group.add(hull);
+
+  // 甲板
+  const deckGeo = new THREE.BoxGeometry(5.5 * scale, 0.1 * scale, 1.8 * scale);
+  deckGeo.translate(0, 1.25 * scale, 0);
+  const deckMat = new THREE.MeshPhongMaterial({ color: 0x6b5b3a });
+  const deck = new THREE.Mesh(deckGeo, deckMat);
+  group.add(deck);
+
+  // 桅杆
+  const mastGeo = new THREE.CylinderGeometry(0.08 * scale, 0.1 * scale, 5 * scale);
+  mastGeo.translate(0, 3.75 * scale, 0);
+  const mastMat = new THREE.MeshPhongMaterial({ color: 0x5c4033 });
+  const mast = new THREE.Mesh(mastGeo, mastMat);
+  group.add(mast);
+
+  // 帆
+  const sailGeo = new THREE.PlaneGeometry(2 * scale, 3 * scale);
+  const sailColor = type === 'cao' ? 0xcc2222 : type === 'liu' ? 0x2255cc : 0x22aa44;
+  const sailMat = new THREE.MeshPhongMaterial({ color: sailColor, side: THREE.DoubleSide });
+  const sail = new THREE.Mesh(sailGeo, sailMat);
+  sail.position.set(0.5 * scale, 4 * scale, 0);
+  sail.rotation.y = 0.2;
+  group.add(sail);
+
+  // 旗帜
+  const flagGeo = new THREE.PlaneGeometry(1 * scale, 0.6 * scale);
+  const flagMat = new THREE.MeshPhongMaterial({ color: sailColor, side: THREE.DoubleSide });
+  const flag = new THREE.Mesh(flagGeo, flagMat);
+  flag.position.set(0, 6 * scale, 0);
+  group.add(flag);
+
+  // 楼阁（大船）
+  if (scale > 1.2) {
+    const towerGeo = new THREE.BoxGeometry(2 * scale, 2 * scale, 1.5 * scale);
+    towerGeo.translate(-0.5 * scale, 2.3 * scale, 0);
+    const towerMat = new THREE.MeshPhongMaterial({ color: 0x5c3a2a });
+    const tower = new THREE.Mesh(towerGeo, towerMat);
+    tower.castShadow = true;
+    group.add(tower);
+  }
+
+  group.position.set(x, 0, z);
+  group.userData = { type, baseX: x, baseZ: z, onFire: false, fireIntensity: 0, sinking: false };
+  scene.add(group);
+  allShips.push(group);
+  return group;
+}
+
+// ═══════════════════════════════════════
+// 曹军船阵（北方）
+// ═══════════════════════════════════════
+const caoFleet = [];
+// 第一排 - 前锋
+for (let i = 0; i < 8; i++) {
+  caoFleet.push(createShip('cao', -50 + i * 14, -15, 1.5));
+}
+// 第二排
+for (let i = 0; i < 7; i++) {
+  caoFleet.push(createShip('cao', -43 + i * 14, -25, 1.3));
+}
+// 第三排
+for (let i = 0; i < 8; i++) {
+  caoFleet.push(createShip('cao', -50 + i * 14, -35, 1.1));
+}
+// 后方旗舰
+const caoFlagship = createShip('cao', 0, -30, 2.2);
+
+// ═══════════════════════════════════════
+// 联军船阵（南方）
+// ═══════════════════════════════════════
+const liuFleet = [];
+for (let i = 0; i < 6; i++) {
+  liuFleet.push(createShip('liu', -35 + i * 14, 25, 1.2));
+}
+for (let i = 0; i < 5; i++) {
+  liuFleet.push(createShip('liu', -28 + i * 14, 35, 1.0));
+}
+// 黄盖火船（隐藏，后面出现）
+const fireShipGroup = new THREE.Group();
+for (let i = 0; i < 5; i++) {
+  const s = createShip('fire', -60 + i * 12, 18, 1.0);
+  fireShipGroup.add(s);
+  fireShips.push(s);
+}
+
+// ═══════════════════════════════════════
+// 连环船阵视觉（锁链）
+// ═══════════════════════════════════════
+const chainLinks = [];
+
+function createChain(pos1, pos2) {
+  const dir = new THREE.Vector3().subVectors(pos2, pos1);
+  const len = dir.length();
+  const mid = new THREE.Vector3().addVectors(pos1, pos2).multiplyScalar(0.5);
+
+  const geo = new THREE.CylinderGeometry(0.05, 0.05, len, 4);
+  const mat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+  const chain = new THREE.Mesh(geo, mat);
+  chain.position.copy(mid);
+  chain.lookAt(pos2);
+  chain.rotateX(Math.PI / 2);
+  chain.visible = false;
+  scene.add(chain);
+  chainLinks.push(chain);
+}
+
+// 创建连接线
+for (let i = 0; i < caoFleet.length - 1; i++) {
+  const s1 = caoFleet[i], s2 = caoFleet[i + 1];
+  if (Math.abs(s1.position.x - s2.position.x) < 20) {
+    createChain(
+      new THREE.Vector3(s1.position.x, 1, s1.position.z),
+      new THREE.Vector3(s2.position.x, 1, s2.position.z)
+    );
+  }
+}
+// 排间连接
+for (let i = 0; i < 7; i++) {
+  createChain(
+    new THREE.Vector3(caoFleet[i].position.x, 1, caoFleet[i].position.z),
+    new THREE.Vector3(caoFleet[i + 8].position.x, 1, caoFleet[i + 8].position.z)
+  );
+}
+
+// ═══════════════════════════════════════
+// 粒子系统 - 火焰
+// ═══════════════════════════════════════
+const FIRE_PARTICLE_COUNT = 2000;
+const fireGeo = new THREE.BufferGeometry();
+const firePositions = new Float32Array(FIRE_PARTICLE_COUNT * 3);
+const fireColors = new Float32Array(FIRE_PARTICLE_COUNT * 3);
+const fireSizes = new Float32Array(FIRE_PARTICLE_COUNT);
+const fireVelocities = [];
+const fireLifetimes = new Float32Array(FIRE_PARTICLE_COUNT);
+
+for (let i = 0; i < FIRE_PARTICLE_COUNT; i++) {
+  firePositions[i * 3] = 0;
+  firePositions[i * 3 + 1] = -100;
+  firePositions[i * 3 + 2] = 0;
+  fireSizes[i] = 0;
+  fireVelocities.push(new THREE.Vector3());
+  fireLifetimes[i] = 0;
+}
+
+fireGeo.setAttribute('position', new THREE.BufferAttribute(firePositions, 3));
+fireGeo.setAttribute('color', new THREE.BufferAttribute(fireColors, 3));
+fireGeo.setAttribute('size', new THREE.BufferAttribute(fireSizes, 1));
+
+const fireMat = new THREE.PointsMaterial({
+  size: 2, vertexColors: true, transparent: true,
+  opacity: 0.8, blending: THREE.AdditiveBlending,
+  sizeAttenuation: true, depthWrite: false,
+});
+const fireParticles = new THREE.Points(fireGeo, fireMat);
+scene.add(fireParticles);
+
+function emitFireParticle(x, z) {
+  for (let i = 0; i < FIRE_PARTICLE_COUNT; i++) {
+    if (fireLifetimes[i] <= 0) {
+      firePositions[i * 3] = x + (Math.random() - 0.5) * 6;
+      firePositions[i * 3 + 1] = 1 + Math.random() * 2;
+      firePositions[i * 3 + 2] = z + (Math.random() - 0.5) * 4;
+      fireSizes[i] = 1.5 + Math.random() * 2;
+      fireVelocities[i].set(
+        (Math.random() - 0.5) * 0.5 + windDirection.x * 0.3,
+        0.5 + Math.random() * 1.5,
+        (Math.random() - 0.5) * 0.5 + windDirection.z * 0.3
+      );
+      fireLifetimes[i] = 1 + Math.random() * 2;
+      break;
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+// 粒子系统 - 烟雾
+// ═══════════════════════════════════════
+const SMOKE_COUNT = 600;
+const smokeGeo = new THREE.BufferGeometry();
+const smokePositions = new Float32Array(SMOKE_COUNT * 3);
+const smokeSizes = new Float32Array(SMOKE_COUNT);
+const smokeOpacities = new Float32Array(SMOKE_COUNT);
+const smokeVelocities = [];
+
+for (let i = 0; i < SMOKE_COUNT; i++) {
+  smokePositions[i * 3 + 1] = -100;
+  smokeSizes[i] = 0;
+  smokeVelocities.push(new THREE.Vector3());
+}
+
+smokeGeo.setAttribute('position', new THREE.BufferAttribute(smokePositions, 3));
+
+const smokeTexture = createSmokeTexture();
+const smokeMat = new THREE.PointsMaterial({
+  size: 4, map: smokeTexture, transparent: true,
+  opacity: 0.3, blending: THREE.NormalBlending,
+  sizeAttenuation: true, depthWrite: false,
+  color: 0x333333,
+});
+const smokeParticles = new THREE.Points(smokeGeo, smokeMat);
+scene.add(smokeParticles);
+
+function createSmokeTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gradient.addColorStop(0, 'rgba(255,255,255,0.6)');
+  gradient.addColorStop(0.5, 'rgba(200,200,200,0.3)');
+  gradient.addColorStop(1, 'rgba(100,100,100,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(canvas);
+  return tex;
+}
+
+function emitSmokeParticle(x, z) {
+  for (let i = 0; i < SMOKE_COUNT; i++) {
+    if (smokePositions[i * 3 + 1] < -50) {
+      smokePositions[i * 3] = x + (Math.random() - 0.5) * 10;
+      smokePositions[i * 3 + 1] = 3 + Math.random() * 5;
+      smokePositions[i * 3 + 2] = z + (Math.random() - 0.5) * 8;
+      smokeSizes[i] = 3 + Math.random() * 5;
+      smokeVelocities[i].set(
+        (Math.random() - 0.5) * 0.3 + windDirection.x * 0.2,
+        0.2 + Math.random() * 0.5,
+        (Math.random() - 0.5) * 0.3 + windDirection.z * 0.2
+      );
+      smokeOpacities[i] = 1;
+      break;
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+// 风向粒子
+// ═══════════════════════════════════════
+const WIND_COUNT = 300;
+const windGeo = new THREE.BufferGeometry();
+const windPos = new Float32Array(WIND_COUNT * 3);
+const windSizes2 = new Float32Array(WIND_COUNT);
+
+for (let i = 0; i < WIND_COUNT; i++) {
+  windPos[i * 3] = (Math.random() - 0.5) * 200;
+  windPos[i * 3 + 1] = 2 + Math.random() * 15;
+  windPos[i * 3 + 2] = 50 + Math.random() * 30;
+  windSizes2[i] = 0.5 + Math.random();
+}
+
+windGeo.setAttribute('position', new THREE.BufferAttribute(windPos, 3));
+
+const windMat = new THREE.PointsMaterial({
+  size: 1, color: 0x55aaff, transparent: true,
+  opacity: 0, blending: THREE.AdditiveBlending,
+  sizeAttenuation: true, depthWrite: false,
+});
+const windParticles = new THREE.Points(windGeo, windMat);
+scene.add(windParticles);
+
+// ═══════════════════════════════════════
+// 风向箭头（3D箭头在场景中）
+// ═══════════════════════════════════════
+const windArrows3D = [];
+function createWindArrow3D(x, z) {
+  const group = new THREE.Group();
+  const shaftGeo = new THREE.CylinderGeometry(0.1, 0.1, 4, 4);
+  const shaftMat = new THREE.MeshPhongMaterial({ color: 0x55aaff, transparent: true, opacity: 0.6 });
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.rotation.z = Math.PI / 2;
+  group.add(shaft);
+
+  const headGeo = new THREE.ConeGeometry(0.4, 1.2, 4);
+  const head = new THREE.Mesh(headGeo, shaftMat);
+  head.rotation.z = -Math.PI / 2;
+  head.position.x = 2.6;
+  group.add(head);
+
+  group.position.set(x, 8, z);
+  group.visible = false;
+  scene.add(group);
+  windArrows3D.push(group);
+  return group;
+}
+
+for (let i = 0; i < 12; i++) {
+  createWindArrow3D(-80 + i * 16, 45 + Math.random() * 20);
+}
+
+// ═══════════════════════════════════════
+// 行军路线
+// ═══════════════════════════════════════
+function createRoute(points, color) {
+  const curve = new THREE.CatmullRomCurve3(points);
+  const geo = new THREE.TubeGeometry(curve, 64, 0.3, 4, false);
+  const mat = new THREE.MeshPhongMaterial({
+    color, transparent: true, opacity: 0,
+    emissive: color, emissiveIntensity: 0.3,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+  return mesh;
+}
+
+const caoRoute = createRoute([
+  new THREE.Vector3(-150, 2, -80),
+  new THREE.Vector3(-80, 2, -60),
+  new THREE.Vector3(-20, 2, -40),
+  new THREE.Vector3(0, 2, -25),
+  new THREE.Vector3(20, 2, -35),
+  new THREE.Vector3(60, 2, -25),
+], 0xff4444);
+
+const sunRoute = createRoute([
+  new THREE.Vector3(80, 2, 80),
+  new THREE.Vector3(40, 2, 60),
+  new THREE.Vector3(0, 2, 40),
+  new THREE.Vector3(-20, 2, 30),
+], 0x4488ff);
+
+// ═══════════════════════════════════════
+// 赤壁标记
+// ═══════════════════════════════════════
+function createLabel(text, x, y, z, color = '#c8a45a') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 36px Microsoft YaHei';
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 32);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+  const sprite = new THREE.Sprite(mat);
+  sprite.position.set(x, y, z);
+  sprite.scale.set(20, 5, 1);
+  scene.add(sprite);
+  return sprite;
+}
+
+const labelChibi = createLabel('赤 壁', 0, 15, 0);
+const labelCao = createLabel('曹 操 军', 0, 12, -30, '#ff6666');
+const labelSun = createLabel('孙刘联军', 0, 12, 35, '#6688ff');
+
+// ═══════════════════════════════════════
+// 状态变量
+// ═══════════════════════════════════════
+let time = 0;
+let playing = true;
+let speed = 1;
+let windDirection = new THREE.Vector3(-1, 0, 1).normalize(); // 初始西北风
+let targetWind = new THREE.Vector3(1, 0, -1).normalize(); // 目标东南风
+let fireIntensity = 0;
+let currentEventIdx = 0;
+let shipsLinked = false;
+let huangGaiMoving = false;
+let huangGaiShip = null;
+let retreatStarted = false;
+
+// 创建黄盖旗舰
+huangGaiShip = createShip('sun', -50, 20, 1.4);
+huangGaiShip.visible = false;
+
+// ═══════════════════════════════════════
+// 相机路径
+// ═══════════════════════════════════════
+const cameraPositions = {
+  overview: { pos: new THREE.Vector3(0, 120, 100), target: new THREE.Vector3(0, 0, 0) },
+  march: { pos: new THREE.Vector3(-60, 80, 80), target: new THREE.Vector3(-20, 0, -10) },
+  ships: { pos: new THREE.Vector3(30, 40, -20), target: new THREE.Vector3(0, 0, -20) },
+  huanggai: { pos: new THREE.Vector3(-60, 30, 30), target: new THREE.Vector3(-40, 0, 20) },
+  wind: { pos: new THREE.Vector3(50, 60, 50), target: new THREE.Vector3(0, 5, 0) },
+  fire_ship: { pos: new THREE.Vector3(-40, 25, 10), target: new THREE.Vector3(-20, 0, -10) },
+  fire_spread: { pos: new THREE.Vector3(0, 80, 0), target: new THREE.Vector3(0, 0, -20) },
+  retreat: { pos: new THREE.Vector3(80, 60, -40), target: new THREE.Vector3(60, 0, -60) },
+  final: { pos: new THREE.Vector3(0, 150, 80), target: new THREE.Vector3(0, 0, 0) },
+};
+
+let camPos = cameraPositions.overview.pos.clone();
+let camTarget = cameraPositions.overview.target.clone();
+let camPosGoal = camPos.clone();
+let camTargetGoal = camTarget.clone();
+
+function setCameraTarget(key) {
+  if (cameraPositions[key]) {
+    camPosGoal = cameraPositions[key].pos.clone();
+    camTargetGoal = cameraPositions[key].target.clone();
+  }
+}
+
+// ═══════════════════════════════════════
+// UI 更新
+// ═══════════════════════════════════════
+const titleEl = document.getElementById('evt-title');
+const descEl = document.getElementById('evt-desc');
+const progressEl = document.getElementById('timeline-progress');
+const timeDisplayEl = document.getElementById('time-display');
+const windArrowEl = document.getElementById('wind-arrow');
+const windLabelEl = document.getElementById('wind-label');
+const loadBarEl = document.getElementById('load-bar');
+
+// 创建时间线标记
+const markersEl = document.getElementById('timeline-markers');
+EVENTS.forEach((evt, idx) => {
+  const marker = document.createElement('div');
+  marker.className = 'timeline-marker';
+  marker.style.left = (evt.time / TOTAL_DURATION * 100) + '%';
+  marker.title = evt.title;
+  marker.onclick = () => {
+    time = evt.time;
+    updateEvent(idx);
+  };
+  markersEl.appendChild(marker);
+});
+
+function updateEvent(idx) {
+  if (idx === currentEventIdx) return;
+  currentEventIdx = idx;
+  const evt = EVENTS[idx];
+
+  titleEl.children[0].textContent = evt.title;
+  titleEl.children[0].style.opacity = '0';
+  titleEl.children[1].textContent = evt.desc;
+  titleEl.children[1].style.opacity = '0';
+  requestAnimationFrame(() => {
+    titleEl.children[0].style.opacity = '1';
+    titleEl.children[1].style.opacity = '1';
+  });
+
+  setCameraTarget(evt.camera);
+
+  // 更新timeline markers
+  document.querySelectorAll('.timeline-marker').forEach((m, i) => {
+    m.classList.toggle('active', i <= idx);
+  });
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+}
+
+// ═══════════════════════════════════════
+// 主循环
+// ═══════════════════════════════════════
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (playing) {
+    time += dt * speed;
+    if (time >= TOTAL_DURATION) {
+      time = TOTAL_DURATION;
+      playing = false;
+      document.getElementById('btn-play').textContent = '▶ 重播';
+    }
+  }
+
+  // 检查事件
+  for (let i = EVENTS.length - 1; i >= 0; i--) {
+    if (time >= EVENTS[i].time) {
+      if (i !== currentEventIdx) updateEvent(i);
+      break;
+    }
+  }
+
+  // 进度条
+  progressEl.style.width = (time / TOTAL_DURATION * 100) + '%';
+  timeDisplayEl.textContent = `${formatTime(time)} / ${formatTime(TOTAL_DURATION)}`;
+
+  // ── 水面波纹 ──
+  for (let i = 0; i < waterPositions.count; i++) {
+    const x = waterPositions.getX(i);
+    const y = waterPositions.getY(i);
+    waterPositions.setZ(i,
+      Math.sin(x * 0.05 + time * 0.8) * 0.3 +
+      Math.cos(y * 0.08 + time * 0.6) * 0.2 +
+      Math.sin((x + y) * 0.03 + time * 1.2) * 0.15
+    );
+  }
+  waterPositions.needsUpdate = true;
+  waterGeo.computeVertexNormals();
+
+  // ── 战船摇晃 ──
+  allShips.forEach(ship => {
+    if (ship.visible) {
+      ship.position.y = Math.sin(time * 0.5 + ship.position.x * 0.1) * 0.15;
+      ship.rotation.z = Math.sin(time * 0.3 + ship.position.z * 0.1) * 0.02;
+      ship.rotation.x = Math.cos(time * 0.4 + ship.position.x * 0.05) * 0.01;
+    }
+  });
+
+  // ── 时间段 1: 连环船 (time 45-70) ──
+  if (time >= 45 && time < 70 && !shipsLinked) {
+    shipsLinked = true;
+    chainLinks.forEach(c => c.visible = true);
+    // 连环后船阵更整齐
+    caoFleet.forEach((ship, i) => {
+      const row = i < 8 ? 0 : i < 15 ? 1 : 2;
+      const col = i < 8 ? i : i < 15 ? i - 8 : i - 15;
+      const targetX = -50 + col * 14;
+      const targetZ = -15 - row * 10;
+      animateShipTo(ship, targetX, targetZ);
+    });
+  }
+
+  // ── 时间段 2: 黄盖诈降 (time 70-105) ──
+  if (time >= 70 && time < 105) {
+    if (!huangGaiShip.visible) {
+      huangGaiShip.visible = true;
+    }
+    const t = Math.min(1, (time - 70) / 35);
+    huangGaiShip.position.x = THREE.MathUtils.lerp(-50, -10, t);
+    huangGaiShip.position.z = THREE.MathUtils.lerp(20, 10, t);
+  }
+
+  // ── 时间段 3: 东南风 (time 90+) ──
+  if (time >= 90) {
+    const t = Math.min(1, (time - 90) / 15);
+    windDirection.lerpVectors(
+      new THREE.Vector3(-1, 0, 1).normalize(),
+      new THREE.Vector3(1, 0, -1).normalize(),
+      t
+    );
+
+    // 风向指示器
+    const angle = Math.atan2(-windDirection.x, -windDirection.z);
+    windArrowEl.style.transform = `translate(-50%, -100%) rotate(${angle}rad)`;
+
+    if (t < 0.3) windLabelEl.textContent = '西北风';
+    else if (t < 0.7) windLabelEl.textContent = '风向转变中...';
+    else windLabelEl.textContent = '东南风!';
+
+    // 显示风粒子和箭头
+    windMat.opacity = t * 0.6;
+    windArrows3D.forEach(a => {
+      a.visible = t > 0.3;
+      a.rotation.y = Math.atan2(windDirection.x, windDirection.z);
+    });
+  }
+
+  // ── 时间段 4: 火船突入 (time 105-125) ──
+  if (time >= 105 && time < 125) {
+    const t = (time - 105) / 20;
+    fireShips.forEach((ship, i) => {
+      ship.visible = true;
+      ship.position.x = THREE.MathUtils.lerp(-60 + i * 12, -30 + i * 10, t);
+      ship.position.z = THREE.MathUtils.lerp(18, -5, t);
+    });
+
+    // 点燃火船
+    if (t > 0.3) {
+      fireShips.forEach(s => { s.userData.onFire = true; });
+    }
+  }
+
+  // ── 时间段 5: 火势蔓延 (time 125-150) ──
+  if (time >= 125) {
+    const t = Math.min(1, (time - 125) / 25);
+    fireIntensity = t;
+
+    // 越来越多的曹军战船着火
+    const fireCount = Math.floor(t * caoFleet.length);
+    for (let i = 0; i < fireCount; i++) {
+      caoFleet[i].userData.onFire = true;
+      caoFleet[i].userData.fireIntensity = Math.min(1, (t * caoFleet.length - i) * 0.5);
+    }
+
+    // 旗舰着火
+    if (t > 0.6) caoFlagship.userData.onFire = true;
+
+    // 火光
+    fireLight.intensity = t * 80;
+    fireLight.position.set(0, 10, -20);
+
+    // 烟雾颜色变深
+    smokeMat.color.setHex(t > 0.5 ? 0x222222 : 0x444444);
+  }
+
+  // ── 时间段 6: 曹操败走 (time 150+) ──
+  if (time >= 150 && !retreatStarted) {
+    retreatStarted = true;
+  }
+  if (retreatStarted) {
+    const t = Math.min(1, (time - 150) / 25);
+    // 曹军战船向北移动
+    caoFleet.forEach((ship, i) => {
+      ship.position.z = ship.userData.baseZ - t * 30;
+      ship.position.x = ship.userData.baseX + t * (20 + i * 2);
+    });
+    caoFlagship.position.z = -30 - t * 40;
+    caoFlagship.position.x = t * 40;
+
+    // 船下沉效果
+    caoFleet.forEach((ship, i) => {
+      if (ship.userData.onFire) {
+        ship.userData.sinking = true;
+        ship.position.y = -t * 1.5;
+        ship.rotation.z = Math.sin(time + i) * t * 0.15;
+      }
+    });
+  }
+
+  // ── 风向粒子更新 ──
+  const wPos = windGeo.attributes.position;
+  for (let i = 0; i < WIND_COUNT; i++) {
+    let x = wPos.getX(i) + windDirection.x * 0.8 * speed;
+    let z = wPos.getZ(i) + windDirection.z * 0.8 * speed;
+    if (x > 120) x = -120;
+    if (x < -120) x = 120;
+    if (z > 80) z = 30;
+    if (z < 30) z = 80;
+    wPos.setX(i, x);
+    wPos.setZ(i, z);
+  }
+  wPos.needsUpdate = true;
+
+  // ── 火焰粒子更新 ──
+  const fPos = fireGeo.attributes.position;
+  const fCol = fireGeo.attributes.color;
+  for (let i = 0; i < FIRE_PARTICLE_COUNT; i++) {
+    if (fireLifetimes[i] > 0) {
+      fireLifetimes[i] -= dt;
+      firePositions[i * 3] += fireVelocities[i].x * dt * 3;
+      firePositions[i * 3 + 1] += fireVelocities[i].y * dt * 3;
+      firePositions[i * 3 + 2] += fireVelocities[i].z * dt * 3;
+
+      const life = fireLifetimes[i] / 3;
+      fireSizes[i] = life * 3;
+
+      // 颜色从白->黄->橙->红
+      if (life > 0.7) {
+        fireColors[i * 3] = 1; fireColors[i * 3 + 1] = 1; fireColors[i * 3 + 2] = 0.8;
+      } else if (life > 0.4) {
+        fireColors[i * 3] = 1; fireColors[i * 3 + 1] = 0.6; fireColors[i * 3 + 2] = 0;
+      } else {
+        fireColors[i * 3] = 1; fireColors[i * 3 + 1] = 0.2; fireColors[i * 3 + 2] = 0;
+      }
+    } else {
+      fireSizes[i] = 0;
+    }
+  }
+  fPos.needsUpdate = true;
+  fCol.needsUpdate = true;
+  fireGeo.attributes.size.needsUpdate = true;
+
+  // ── 发射火焰粒子 ──
+  if (fireIntensity > 0) {
+    const emitCount = Math.floor(fireIntensity * 15);
+    for (let i = 0; i < emitCount; i++) {
+      const shipIdx = Math.floor(Math.random() * caoFleet.length);
+      if (caoFleet[shipIdx].userData.onFire) {
+        emitFireParticle(
+          caoFleet[shipIdx].position.x,
+          caoFleet[shipIdx].position.z
+        );
+      }
+    }
+    // 旗舰火焰
+    if (caoFlagship.userData.onFire) {
+      for (let i = 0; i < 5; i++) emitFireParticle(caoFlagship.position.x, caoFlagship.position.z);
+    }
+  }
+
+  // ── 烟雾粒子更新 ──
+  const sPos = smokeGeo.attributes.position;
+  for (let i = 0; i < SMOKE_COUNT; i++) {
+    if (smokePositions[i * 3 + 1] > -50) {
+      smokePositions[i * 3] += smokeVelocities[i].x * dt * 2;
+      smokePositions[i * 3 + 1] += smokeVelocities[i].y * dt * 2;
+      smokePositions[i * 3 + 2] += smokeVelocities[i].z * dt * 2;
+      smokeSizes[i] += dt * 1.5;
+      if (smokePositions[i * 3 + 1] > 40) smokePositions[i * 3 + 1] = -100;
+    }
+  }
+  sPos.needsUpdate = true;
+
+  // ── 发射烟雾 ──
+  if (fireIntensity > 0.2) {
+    const emitCount = Math.floor(fireIntensity * 3);
+    for (let i = 0; i < emitCount; i++) {
+      const shipIdx = Math.floor(Math.random() * caoFleet.length);
+      if (caoFleet[shipIdx].userData.onFire) {
+        emitSmokeParticle(caoFleet[shipIdx].position.x, caoFleet[shipIdx].position.z);
+      }
+    }
+  }
+
+  // ── 相机平滑 ──
+  camPos.lerp(camPosGoal, dt * 1.5);
+  camTarget.lerp(camTargetGoal, dt * 1.5);
+  camera.position.copy(camPos);
+  controls.target.copy(camTarget);
+  controls.update();
+
+  // ── 环境光随火势变化 ──
+  ambientLight.intensity = 0.6 + fireIntensity * 0.4;
+  ambientLight.color.lerpColors(
+    new THREE.Color(0x334466),
+    new THREE.Color(0x663311),
+    fireIntensity
+  );
+
+  renderer.render(scene, camera);
+}
+
+function animateShipTo(ship, x, z) {
+  // 简单动画
+  const startX = ship.position.x;
+  const startZ = ship.position.z;
+  let t = 0;
+  const interval = setInterval(() => {
+    t += 0.02;
+    if (t >= 1) { clearInterval(interval); t = 1; }
+    ship.position.x = THREE.MathUtils.lerp(startX, x, t);
+    ship.position.z = THREE.MathUtils.lerp(startZ, z, t);
+  }, 16);
+}
+
+// ═══════════════════════════════════════
+// 全局控制函数
+// ═══════════════════════════════════════
+window.togglePlay = function() {
+  playing = !playing;
+  document.getElementById('btn-play').textContent = playing ? '⏸ 暂停' : '▶ 播放';
+};
+
+window.setSpeed = function(s) {
+  speed = s;
+  document.querySelectorAll('#controls button').forEach(b => {
+    if (b.textContent.includes('x')) {
+      b.classList.toggle('active', b.textContent.includes(s));
+    }
+  });
+};
+
+window.resetDemo = function() {
+  time = 0;
+  playing = true;
+  currentEventIdx = -1;
+  shipsLinked = false;
+  retreatStarted = false;
+  fireIntensity = 0;
+  fireLight.intensity = 0;
+
+  chainLinks.forEach(c => c.visible = false);
+  caoFleet.forEach((ship, i) => {
+    ship.position.set(ship.userData.baseX, 0, ship.userData.baseZ);
+    ship.rotation.set(0, 0, 0);
+    ship.userData.onFire = false;
+    ship.userData.fireIntensity = 0;
+    ship.userData.sinking = false;
+  });
+  caoFlagship.position.set(0, 0, -30);
+  caoFlagship.userData.onFire = false;
+  fireShips.forEach(s => { s.visible = false; s.userData.onFire = false; });
+  huangGaiShip.visible = false;
+
+  windDirection.set(-1, 0, 1).normalize();
+  windArrowEl.style.transform = 'translate(-50%, -100%) rotate(0rad)';
+  windLabelEl.textContent = '西北风';
+  windMat.opacity = 0;
+  windArrows3D.forEach(a => a.visible = false);
+
+  camPosGoal = cameraPositions.overview.pos.clone();
+  camTargetGoal = cameraPositions.overview.target.clone();
+
+  document.getElementById('btn-play').textContent = '⏸ 暂停';
+};
+
+// ═══════════════════════════════════════
+// 时间线点击
+// ═══════════════════════════════════════
+document.getElementById('timeline-bar').addEventListener('click', (e) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  time = pct * TOTAL_DURATION;
+});
+
+// ═══════════════════════════════════════
+// 加载与启动
+// ═══════════════════════════════════════
+let loadProgress = 0;
+const loadInterval = setInterval(() => {
+  loadProgress += 5 + Math.random() * 10;
+  if (loadProgress >= 100) {
+    loadProgress = 100;
+    clearInterval(loadInterval);
+    setTimeout(() => {
+      document.getElementById('loading').style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('loading').style.display = 'none';
+        updateEvent(0);
+      }, 1000);
+    }, 500);
+  }
+  loadBarEl.style.width = loadProgress + '%';
+}, 100);
+
+// ═══════════════════════════════════════
+// 窗口尺寸
+// ═══════════════════════════════════════
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// 启动
+camera.position.copy(cameraPositions.overview.pos);
+controls.target.copy(cameraPositions.overview.target);
+animate();
+
+</script>
 </body>
 </html>
