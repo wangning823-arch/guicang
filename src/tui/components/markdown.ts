@@ -3,7 +3,7 @@
  * 在终端中渲染 Markdown 内容
  */
 
-import { Colors, Theme, colorize, bold, dim } from '../theme.js';
+import { Colors, colorize, bold, dim } from '../theme.js';
 import { getStringWidth, truncateString } from '../utils.js';
 
 /** 渲染后的块 */
@@ -198,7 +198,7 @@ export class MarkdownRenderer {
       let lineContent = ` ${truncated} `;
       if (this.showLineNumbers) {
         const lineNum = String(i + 1).padStart(3);
-        lineContent = ` ${colorize(lineNum, Colors.brightBlack)} ${truncated} `;
+        lineContent = ` ${colorize(lineNum, Colors.gray)} ${truncated} `;
       }
 
       result.push(colorize(lineContent, Colors.bgBlack));
@@ -220,13 +220,13 @@ export class MarkdownRenderer {
   private renderQuote(content: string): string {
     const lines = content.split('\n');
     return lines.map(line => {
-      return colorize(` ▎ `, Colors.brightBlue) + colorize(line, Colors.brightBlack);
+      return colorize(` ▎ `, Colors.brightBlue) + colorize(line, Colors.gray);
     }).join('\n');
   }
 
   /** 渲染水平分割线 */
   private renderHR(): string {
-    return colorize('─'.repeat(this.maxWidth), Colors.brightBlack);
+    return colorize('─'.repeat(this.maxWidth), Colors.gray);
   }
 
   /** 渲染普通文本 */

@@ -84,11 +84,14 @@ export class Agent {
 
   /**
    * 核心执行循环（提取公共逻辑，消除 run/runWithHistory 重复）
+   * @param streamOverride 可选的流式回调，覆盖 this.options.streamCallback（用于并发请求隔离）
    */
   private async executeLoop(
     messages: Message[],
     toolContext: ToolContext,
+    streamOverride?: StreamCallback,
   ): Promise<AgentResult> {
+    const streamCallback = streamOverride ?? this.options.streamCallback;
     const allToolCalls: Array<ToolCall & { result?: ToolResult }> = [];
     const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     const toolDefs = getAllToolDefinitions();
@@ -111,8 +114,8 @@ export class Agent {
         this.logger.info(`Iteration ${iterations}: calling LLM...`);
 
         // 通知前端进度
-        if (this.options.streamCallback && iterations > 1) {
-          this.options.streamCallback({
+        if (streamCallback && iterations > 1) {
+          streamCallback({
             type: 'text_delta',
             delta: `\n⏳ 思考中 (第${iterations}轮)...\n`,
           });
@@ -128,8 +131,8 @@ export class Agent {
           const errorDetail = llmError instanceof Error ? llmError.message : String(llmError);
           this.logger.error(`LLM call failed: ${errorDetail}`);
           const errorMsg = `LLM 调用失败: ${errorDetail}`;
-          if (this.options.streamCallback) {
-            this.options.streamCallback({ type: 'text_delta', delta: `\n❌ ${errorMsg}\n` });
+          if (streamCallback) {
+            streamCallback({ type: 'text_delta', delta: `\n❌ ${errorMsg}\n` });
           }
           this.status = 'error';
           return {
@@ -155,9 +158,9 @@ export class Agent {
         if (!response.toolCalls || response.toolCalls.length === 0) {
           // 流式输出文本增量
           this.logger.info(`No tool calls, streaming text (${textContent.length} chars)`);
-          if (this.options.streamCallback) {
+          if (streamCallback) {
             const streamText = textContent || '(模型返回了空内容)';
-            const streamHandler = new StreamHandler(this.options.streamCallback);
+            const streamHandler = new StreamHandler(streamCallback);
             streamHandler.handleTextDelta(streamText);
             streamHandler.finish();
           }
@@ -209,9 +212,9 @@ export class Agent {
         this.status = 'acting';
 
         // 通知前端正在执行工具（不流式输出原始 JSON 内容块）
-        if (this.options.streamCallback) {
+        if (streamCallback) {
           const toolNames = response.toolCalls.map((tc) => tc.name).join(', ');
-          this.options.streamCallback({
+          streamCallback({
             type: 'text_delta',
             delta: `\n🔧 正在执行工具: ${toolNames}...\n`,
           });
@@ -225,7 +228,7 @@ export class Agent {
 
         // 额外检查：验证工具调用参数是否完整（防止部分截断的 tool_use 被执行）
         const hasIncompleteToolCalls = response.toolCalls.some((tc) => {
-          const argsStr = JSON.stringify(tc.arguments);
+          void JSON.stringify(tc.arguments);  // intentional: keep for debugging
           // 检查参数是否异常短（可能是截断的）或明显不完整
           if (tc.name === 'file_write') {
             const content = tc.arguments.content as string;
@@ -358,13 +361,13 @@ export class Agent {
         this.logger.debug(`After tool execution: ${messages.length} messages in context`);
 
         // 通知前端工具执行完成
-        if (this.options.streamCallback) {
+        if (streamCallback) {
           const successCount = results.filter((r) => r.success).length;
           const failCount = results.length - successCount;
           const summary = failCount > 0
             ? `✅ ${successCount} 成功, ❌ ${failCount} 失败`
             : `✅ ${successCount} 个工具执行成功`;
-          this.options.streamCallback({
+          streamCallback({
             type: 'text_delta',
             delta: `\n${summary}\n`,
           });
@@ -422,10 +425,12 @@ export class Agent {
 
   /**
    * 运行 agent（带对话历史）
+   * @param streamOverride 可选的流式回调，覆盖 this.options.streamCallback（用于并发请求隔离）
    */
   async runWithHistory(
     history: Message[],
     userMessage: string,
+    streamOverride?: StreamCallback,
   ): Promise<AgentResult> {
     this.status = 'thinking';
     const messages: Message[] = [...history];
@@ -445,6 +450,6 @@ export class Agent {
       ...this.options.toolContext,
     };
 
-    return this.executeLoop(messages, toolContext);
+    return this.executeLoop(messages, toolContext, streamOverride);
   }
 }

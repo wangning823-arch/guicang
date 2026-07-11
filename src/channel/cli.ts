@@ -11,7 +11,7 @@ import { Logger } from '../core/logger.js';
 export class CLIChannel extends BaseChannel {
   readonly type = 'cli';
   private rl: readline.Interface | null = null;
-  private logger = new Logger('channel:cli');
+  protected logger = new Logger('channel:cli');
   private isInteractive = process.stdin.isTTY;
 
   async start(): Promise<void> {

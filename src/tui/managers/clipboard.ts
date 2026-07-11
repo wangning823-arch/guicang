@@ -46,7 +46,7 @@ export class ClipboardManager {
         this.addToHistory(text);
         return true;
       }
-    } catch (e) {
+    } catch {
       // 复制失败，但仍然添加到历史
       this.addToHistory(text);
       return false;
@@ -72,7 +72,7 @@ export class ClipboardManager {
       } else if (process.platform === 'win32') {
         return execSync('powershell -command "Get-Clipboard"', { encoding: 'utf-8' });
       }
-    } catch (e) {
+    } catch {
       return null;
     }
     return null;

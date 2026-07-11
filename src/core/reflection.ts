@@ -128,8 +128,8 @@ export class SelfReflection {
       );
 
       return response.message.content;
-    } catch (error) {
-      logger.error('Revision failed', error);
+    } catch (err: unknown) {
+      logger.error('Revision failed', err);
       return output; // 失败时返回原文
     }
   }
@@ -208,7 +208,7 @@ ${suggestionsText}
         issues: parsed.issues ?? [],
         suggestions: parsed.suggestions ?? [],
       };
-    } catch (error) {
+    } catch {
       logger.warn('Failed to parse assessment, using defaults');
       return {
         quality: 'good',

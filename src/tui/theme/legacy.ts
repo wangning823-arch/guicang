@@ -4,8 +4,6 @@
  */
 
 import { FG, BG, STYLE, RESET } from './colors.js';
-import { darkTokens } from './tokens.js';
-import type { DesignTokens } from './tokens.js';
 
 /** 旧版 Theme 对象（保持兼容） */
 export const Theme = {

@@ -161,7 +161,7 @@ export class LongTermSqliteMemory implements MemoryStore {
     const stmt = db.prepare(`SELECT * FROM memories ${where} ${orderBy} LIMIT ?`);
     const rows = stmt.all(...params, limit) as MemoryRow[];
 
-    let entries = rows.map((r) => this.rowToEntry(r));
+    const entries = rows.map((r) => this.rowToEntry(r));
 
     // 衰减排序需要在应用层计算
     if (options?.sortBy === 'relevance') {

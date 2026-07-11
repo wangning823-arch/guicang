@@ -206,7 +206,7 @@ export class SessionManager {
         this.sessions.set(session.id, session);
         return session;
       }
-    } catch (e) {
+    } catch {
       // JSON 解析失败
     }
     return null;

@@ -4,9 +4,9 @@
  */
 
 import { TUIEngine, type KeyEvent, type Rect } from '../engine.js';
-import { Colors, Theme, colorize, dim, bold } from '../theme.js';
+import { Colors, colorize, dim } from '../theme.js';
 import { Box } from '../components/box.js';
-import { getStringWidth, truncateString } from '../utils.js';
+import { truncateString } from '../utils.js';
 
 /** Agent 状态 */
 export type AgentStatus = 'idle' | 'running' | 'completed' | 'failed' | 'waiting';
@@ -39,9 +39,9 @@ export class OrchestratorPanel {
 
   constructor(engine: TUIEngine, options: OrchestratorPanelOptions) {
     this.engine = engine;
-    this.box = new Box({
+    this.box = new Box(options.rect, {
       title: '🤖 Agent 编排',
-      rect: options.rect,
+      border: true,
       accentColor: Colors.brightYellow,
     });
   }
@@ -70,8 +70,8 @@ export class OrchestratorPanel {
   }
 
   /** 渲染面板 */
-  render(): void {
-    const { rect } = this.box.getRect() as { rect: Rect };
+  render(engine: TUIEngine): void {
+    const rect = this.box.rect;
     const contentHeight = rect.height - 2;
     const contentWidth = rect.width - 2;
 
@@ -103,7 +103,7 @@ export class OrchestratorPanel {
     }
 
     this.box.setContent(lines.slice(0, contentHeight));
-    this.box.render();
+    this.box.render(engine);
   }
 
   /** 渲染列表视图 */
@@ -182,7 +182,7 @@ export class OrchestratorPanel {
       const startTime = task.startTime?.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) || '--:--';
       const endTime = task.endTime?.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) || '--:--';
 
-      lines.push(` ${colorize(startTime, Colors.brightBlack)} ${statusIcon} ${name} ${dim(endTime)}`);
+      lines.push(` ${colorize(startTime, Colors.gray)} ${statusIcon} ${name} ${dim(endTime)}`);
     }
 
     return lines;
@@ -191,7 +191,7 @@ export class OrchestratorPanel {
   /** 获取状态图标 */
   private getStatusIcon(status: AgentStatus): string {
     switch (status) {
-      case 'idle': return colorize('○', Colors.brightBlack);
+      case 'idle': return colorize('○', Colors.gray);
       case 'running': return colorize('●', Colors.brightCyan);
       case 'completed': return colorize('✓', Colors.brightGreen);
       case 'failed': return colorize('✗', Colors.brightRed);

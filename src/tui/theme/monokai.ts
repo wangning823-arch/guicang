@@ -2,7 +2,7 @@
  * Monokai 主题
  */
 
-import { fg256, bg256, FG, BG } from './colors.js';
+import { fg256, bg256 } from './colors.js';
 import type { DesignTokens } from './tokens.js';
 
 export const monokaiTokens: DesignTokens = {

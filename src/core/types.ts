@@ -6,10 +6,17 @@
 /** 消息角色 */
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
 
+/** 内容块（保留 LLM 返回的完整结构，含 text + tool_use，用于多轮工具调用回放） */
+export type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
+
 /** 单条消息 */
 export interface Message {
   role: MessageRole;
   content: string;
+  /** 内容块（assistant 消息可携带，回放给 Anthropic 兼容 API 时必须保留 tool_use 块） */
+  contentBlocks?: ContentBlock[];
   /** 工具调用 ID（role=tool 时必填） */
   toolCallId?: string;
 }

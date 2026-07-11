@@ -23,6 +23,18 @@ const MIME_TYPES: Record<string, string> = {
   '.ico': 'image/x-icon',
 };
 
+/** 从消息内容中提取纯文本（content 可能是 string 或 content blocks 数组） */
+function extractText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => b.text)
+      .join('');
+  }
+  return '';
+}
+
 export interface WebServerOptions {
   port?: number;
   host?: string;
@@ -246,12 +258,10 @@ export class WebServer {
         };
 
         // 获取或初始化该连接的对话历史
-        let history = this.clientHistories.get(ws) ?? [];
+        const history = this.clientHistories.get(ws) ?? [];
 
-        // 临时设置 streamCallback 用于实时推送文本增量
-        const originalOptions = (this.agent as any).options;
-        const prevCallback = originalOptions.streamCallback;
-        originalOptions.streamCallback = (event: { type: string; delta?: string }) => {
+        // 通过参数传入流式回调，避免并发连接间互相覆盖 agent.options.streamCallback
+        const streamCallback = (event: { type: string; delta?: string }) => {
           if (event.type === 'text_delta' && event.delta) {
             try {
               ws.send(JSON.stringify({ type: 'delta', content: event.delta }));
@@ -261,7 +271,7 @@ export class WebServer {
 
         let result;
         try {
-          result = await this.agent.runWithHistory(history, channelMessage.content);
+          result = await this.agent.runWithHistory(history, channelMessage.content, streamCallback);
         } catch (agentError) {
           // Agent 执行出错，发送错误消息给前端
           const errorMsg = agentError instanceof Error ? agentError.message : String(agentError);
@@ -272,7 +282,6 @@ export class WebServer {
               content: `\n\n❌ Agent 错误: ${errorMsg}\n`,
             }));
           } catch { /* ignore */ }
-          originalOptions.streamCallback = prevCallback;
           ws.send(JSON.stringify({
             type: 'response',
             id: channelMessage.id,
@@ -281,8 +290,6 @@ export class WebServer {
             status: 'error',
           }));
           return;
-        } finally {
-          originalOptions.streamCallback = prevCallback;
         }
 
         // 更新对话历史
@@ -295,12 +302,7 @@ export class WebServer {
           .pop();
 
         // content 可能是 string 或 content blocks 数组，提取纯文本
-        const lastContent = lastAssistant?.content;
-        const responseText = typeof lastContent === 'string'
-          ? lastContent
-          : Array.isArray(lastContent)
-            ? lastContent.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
-            : '';
+        const responseText = extractText(lastAssistant?.content);
 
         ws.send(JSON.stringify({
           type: 'response',

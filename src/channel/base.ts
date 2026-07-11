@@ -46,7 +46,7 @@ export abstract class BaseChannel {
   protected conversationHistory: Message[] = [];
   /** 最大历史消息数（防止无限增长） */
   protected maxHistoryLength = 50;
-  private logger = new Logger('channel');
+  protected logger = new Logger('channel');
 
   constructor(protected options: ChannelOptions) {}
 
@@ -114,5 +114,17 @@ export abstract class BaseChannel {
   /** 检查是否正在运行 */
   isRunning(): boolean {
     return this.running;
+  }
+
+  /** 从消息内容中提取纯文本（content 可能是 string 或 content blocks 数组） */
+  protected extractText(content: unknown): string {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return content
+        .filter((b: any) => b.type === 'text')
+        .map((b: any) => b.text)
+        .join('');
+    }
+    return '';
   }
 }

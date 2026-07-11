@@ -4,9 +4,9 @@
  */
 
 import { TUIEngine, type KeyEvent, type Rect } from '../engine.js';
-import { Colors, Theme, colorize, dim, bold } from '../theme.js';
+import { Colors, colorize, dim } from '../theme.js';
 import { Box } from '../components/box.js';
-import { getStringWidth, truncateString } from '../utils.js';
+import { truncateString } from '../utils.js';
 import { SessionManager, type SessionInfo } from '../managers/session.js';
 
 /** 历史面板选项 */
@@ -26,9 +26,9 @@ export class HistoryPanel {
   constructor(engine: TUIEngine, options: HistoryPanelOptions) {
     this.engine = engine;
     this.sessionManager = options.sessionManager;
-    this.box = new Box({
+    this.box = new Box(options.rect, {
       title: '📋 会话历史',
-      rect: options.rect,
+      border: true,
       accentColor: Colors.brightMagenta,
     });
 
@@ -43,8 +43,8 @@ export class HistoryPanel {
   }
 
   /** 渲染面板 */
-  render(): void {
-    const { rect } = this.box.getRect() as { rect: Rect };
+  render(engine: TUIEngine): void {
+    const rect = this.box.rect;
     const contentHeight = rect.height - 2;
     const contentWidth = rect.width - 2;
 
@@ -71,7 +71,7 @@ export class HistoryPanel {
         let line = '';
         if (isSelected) {
           line = colorize(` ▸ ${name}`, Colors.brightWhite);
-          line += colorize(` ${date} ${time}`, Colors.brightBlack);
+          line += colorize(` ${date} ${time}`, Colors.gray);
           line += colorize(` (${msgCount})`, Colors.brightMagenta);
         } else {
           line = `   ${colorize(name, Colors.white)}`;
@@ -89,7 +89,7 @@ export class HistoryPanel {
     }
 
     this.box.setContent(lines.slice(0, contentHeight));
-    this.box.render();
+    this.box.render(engine);
   }
 
   /** 处理按键 */

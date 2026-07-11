@@ -4,8 +4,8 @@
  */
 
 import { TUIEngine, type KeyEvent, type Rect } from '../engine.js';
-import { Colors, Theme, colorize, dim, bold } from '../theme.js';
-import { getStringWidth, truncateString } from '../utils.js';
+import { Colors, colorize, dim } from '../theme.js';
+import { getStringWidth } from '../utils.js';
 
 /** 向导步骤 */
 export interface WizardStep {
@@ -50,8 +50,8 @@ export class WelcomeWizard {
   private selectedIndex: number = 0;
   private inputValue: string = '';
   private isComplete: boolean = false;
-  private onComplete?: (result: WizardResult) => void;
-  private onCancel?: () => void;
+  private completeHandler?: (result: WizardResult) => void;
+  private cancelHandler?: () => void;
 
   constructor(engine: TUIEngine, options: WizardOptions) {
     this.engine = engine;
@@ -207,8 +207,8 @@ export class WelcomeWizard {
 
     // Esc 取消
     if (event.name === 'escape') {
-      if (this.onCancel) {
-        this.onCancel();
+      if (this.cancelHandler) {
+        this.cancelHandler();
       }
       return true;
     }
@@ -309,19 +309,19 @@ export class WelcomeWizard {
   /** 完成向导 */
   private complete(): void {
     this.isComplete = true;
-    if (this.onComplete) {
-      this.onComplete(this.result);
+    if (this.completeHandler) {
+      this.completeHandler(this.result);
     }
   }
 
   /** 设置完成回调 */
   onComplete(callback: (result: WizardResult) => void): void {
-    this.onComplete = callback;
+    this.completeHandler = callback;
   }
 
   /** 设置取消回调 */
   onCancel(callback: () => void): void {
-    this.onCancel = callback;
+    this.cancelHandler = callback;
   }
 
   /** 获取结果 */

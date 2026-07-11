@@ -4,7 +4,7 @@
  */
 
 import { Colors, colorize } from '../theme.js';
-import { getStringWidth, truncateString } from '../utils.js';
+import { truncateString } from '../utils.js';
 
 /** 语言规则 */
 interface LanguageRules {
@@ -68,7 +68,7 @@ export class CodeBlock {
       let lineContent = '';
       if (this.showLineNumbers) {
         const num = String(lineNum).padStart(lineNumWidth);
-        const numColor = isHighlighted ? Colors.brightYellow : Colors.brightBlack;
+        const numColor = isHighlighted ? Colors.brightYellow : Colors.gray;
         lineContent += colorize(`${num} `, numColor);
       }
 
@@ -183,7 +183,7 @@ export class CodeBlock {
       case 'string':
         return colorize(token.text, Colors.brightGreen);
       case 'comment':
-        return colorize(token.text, Colors.brightBlack);
+        return colorize(token.text, Colors.gray);
       case 'number':
         return colorize(token.text, Colors.brightYellow);
       case 'function':

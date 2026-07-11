@@ -4,7 +4,7 @@
  */
 
 import { BaseProvider, type ProviderOptions } from './base.js';
-import type { Message, LLMResponse, ToolDefinition, ToolCall } from '../core/types.js';
+import type { Message, LLMResponse, ToolDefinition, ToolCall, ContentBlock } from '../core/types.js';
 
 /** Anthropic API 响应格式 */
 interface AnthropicResponse {
@@ -98,18 +98,9 @@ export class AnthropicProvider extends BaseProvider {
     try {
       let lastError: Error | null = null;
       const maxRetries = this.config.maxRetries ?? 3;
-      const mappedTools = tools?.map((t) => ({
-        name: t.name,
-        description: t.description,
-        input_schema: t.parameters,
-      }));
 
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          if (mappedTools) {
-            body.tools = mappedTools;
-          }
-
           const response = await fetch(`${this.config.baseUrl}/v1/messages`, {
             method: 'POST',
             headers: this.getHeaders(),
@@ -178,28 +169,18 @@ export class AnthropicProvider extends BaseProvider {
           });
         }
       } else if (msg.role === 'assistant') {
-        result.push({ role: 'assistant', content: msg.content });
+        // 若携带完整 content blocks（含 tool_use），原样回放以保证 tool_result 匹配
+        if (msg.contentBlocks && msg.contentBlocks.length > 0) {
+          result.push({ role: 'assistant', content: msg.contentBlocks });
+        } else {
+          result.push({ role: 'assistant', content: msg.content });
+        }
       } else {
         result.push({ role: msg.role, content: msg.content });
       }
     }
 
     return result;
-  }
-
-  /**
-   * 尝试解析 content blocks JSON
-   */
-  private tryParseContentBlocks(content: string): Array<Record<string, unknown>> | null {
-    try {
-      const parsed = JSON.parse(content);
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.type) {
-        return parsed;
-      }
-    } catch {
-      // 不是 JSON，是纯文本
-    }
-    return null;
   }
 
   private parseResponse(data: AnthropicResponse): LLMResponse {
@@ -226,7 +207,7 @@ export class AnthropicProvider extends BaseProvider {
 
     // 保留完整的 content blocks（包含 text + tool_use）
     // 这样后续 API 调用能正确匹配 tool_results
-    const contentBlocks = data.content.map((c) => {
+    const contentBlocks: ContentBlock[] = data.content.map((c) => {
       if (c.type === 'text') {
         return { type: 'text' as const, text: (c as { type: 'text'; text: string }).text };
       }
@@ -237,8 +218,9 @@ export class AnthropicProvider extends BaseProvider {
     return {
       message: {
         role: 'assistant',
-        // 只保留文本内容，不存储 content blocks
+        // 文本内容便于展示；contentBlocks 供多轮工具调用回放
         content: textContent,
+        contentBlocks,
       },
       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       usage: data.usage

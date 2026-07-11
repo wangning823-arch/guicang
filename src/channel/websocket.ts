@@ -23,7 +23,7 @@ interface WSMessage {
 export class WebSocketChannel extends BaseChannel {
   readonly type = 'websocket';
   private wss: WebSocketServer | null = null;
-  private logger = new Logger('channel:websocket');
+  protected logger = new Logger('channel:websocket');
   private port: number;
   private host: string;
   private clients = new Set<WebSocket>();

@@ -207,7 +207,7 @@ export class LayoutManager {
   }
 
   /** 分割面板 */
-  splitPanel(direction: 'horizontal' | 'vertical', ratio: number = 0.5): void {
+  splitPanel(direction: 'horizontal' | 'vertical', _ratio: number = 0.5): void {
     // 这里可以实现面板分割逻辑
     // 目前简化处理
   }

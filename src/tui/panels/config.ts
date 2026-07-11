@@ -4,9 +4,9 @@
  */
 
 import { TUIEngine, type KeyEvent, type Rect } from '../engine.js';
-import { Colors, Theme, colorize, dim, bold } from '../theme.js';
+import { Colors, colorize, dim } from '../theme.js';
 import { Box } from '../components/box.js';
-import { getStringWidth, truncateString } from '../utils.js';
+import { truncateString } from '../utils.js';
 
 /** 配置项 */
 export interface ConfigItem {
@@ -35,9 +35,9 @@ export class ConfigPanel {
 
   constructor(engine: TUIEngine, options: ConfigPanelOptions) {
     this.engine = engine;
-    this.box = new Box({
+    this.box = new Box(options.rect, {
       title: '⚙️ 配置',
-      rect: options.rect,
+      border: true,
       accentColor: Colors.brightGreen,
     });
 
@@ -67,8 +67,8 @@ export class ConfigPanel {
   }
 
   /** 渲染面板 */
-  render(): void {
-    const { rect } = this.box.getRect() as { rect: Rect };
+  render(engine: TUIEngine): void {
+    const rect = this.box.rect;
     const contentHeight = rect.height - 2;
     const contentWidth = rect.width - 2;
 
@@ -96,7 +96,7 @@ export class ConfigPanel {
       let line = '';
       if (isSelected) {
         line = colorize(` ▸ ${label}`, Colors.brightWhite);
-        line += colorize(`: `, Colors.brightBlack);
+        line += colorize(`: `, Colors.gray);
         line += value;
       } else {
         line = `   ${colorize(label, Colors.white)}`;
@@ -118,7 +118,7 @@ export class ConfigPanel {
     }
 
     this.box.setContent(lines.slice(0, contentHeight));
-    this.box.render();
+    this.box.render(engine);
   }
 
   /** 处理按键 */

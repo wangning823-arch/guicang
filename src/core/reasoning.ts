@@ -234,7 +234,7 @@ export class ReasoningChain {
         tools: s.tools ?? [],
         status: 'pending' as const,
       }));
-    } catch (error) {
+    } catch {
       logger.warn('Failed to parse steps from LLM response, using fallback');
       return [];
     }

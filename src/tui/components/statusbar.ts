@@ -3,9 +3,9 @@
  * 显示应用状态信息
  */
 
-import { TUIEngine, type Rect } from '../engine.js';
-import { Colors, Theme, colorize, dim } from '../theme.js';
-import { getStringWidth, truncateString } from '../utils.js';
+import { TUIEngine } from '../engine.js';
+import { Colors, colorize, dim } from '../theme.js';
+import { getStringWidth } from '../utils.js';
 
 /** 状态栏选项 */
 export interface StatusBarOptions {

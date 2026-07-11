@@ -205,12 +205,12 @@ describe('SearchManager', () => {
 
   it('should filter tools by status', () => {
     manager.updateToolCalls([
-      { name: 'tool1', status: 'success', duration: 100, timestamp: new Date() },
-      { name: 'tool2', status: 'failed', duration: 50, timestamp: new Date() },
+      { name: 'tool1', args: {}, success: true, duration: 100, timestamp: new Date() },
+      { name: 'tool2', args: {}, success: false, duration: 50, timestamp: new Date() },
     ]);
     const filtered = manager.filterTools({ status: 'success' });
     expect(filtered.length).toBe(1);
-    expect(filtered[0].status).toBe('success');
+    expect(filtered[0].success).toBe(true);
   });
 });
 

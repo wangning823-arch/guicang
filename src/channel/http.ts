@@ -16,7 +16,7 @@ export interface HTTPChannelOptions {
 export class HTTPChannel extends BaseChannel {
   readonly type = 'http';
   private server: Server | null = null;
-  private logger = new Logger('channel:http');
+  protected logger = new Logger('channel:http');
   private port: number;
   private host: string;
 
@@ -114,12 +114,7 @@ export class HTTPChannel extends BaseChannel {
           .filter((m) => m.role === 'assistant')
           .pop();
 
-        const lastContent = lastAssistant?.content;
-        const responseText = typeof lastContent === 'string'
-          ? lastContent
-          : Array.isArray(lastContent)
-            ? lastContent.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
-            : '';
+        const responseText = this.extractText(lastAssistant?.content);
 
         this.sendJSON(res, 200, {
           response: responseText,
@@ -185,12 +180,7 @@ export class HTTPChannel extends BaseChannel {
           .filter((m) => m.role === 'assistant')
           .pop();
 
-        const lastContent = lastAssistant?.content;
-        const responseText = typeof lastContent === 'string'
-          ? lastContent
-          : Array.isArray(lastContent)
-            ? lastContent.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('')
-            : '';
+        const responseText = this.extractText(lastAssistant?.content);
 
         sendSSE({
           type: 'done',
@@ -221,35 +211,28 @@ export class HTTPChannel extends BaseChannel {
 
     this.logger.debug(`Handling message (stream), history has ${this.conversationHistory.length} messages`);
 
-    // 临时设置 streamCallback
-    const originalOptions = (this.agent as any).options;
-    const prevCallback = originalOptions.streamCallback;
-    originalOptions.streamCallback = streamCallback;
+    // 通过参数传入流式回调，避免并发请求间互相覆盖 agent.options.streamCallback
+    const result = await this.agent.runWithHistory(
+      this.conversationHistory,
+      message.content,
+      streamCallback,
+    );
 
-    try {
-      const result = await this.agent.runWithHistory(
-        this.conversationHistory,
-        message.content,
-      );
+    if (result.messages.length > 0) {
+      this.conversationHistory = result.messages;
 
-      if (result.messages.length > 0) {
-        this.conversationHistory = result.messages;
-
-        if (this.conversationHistory.length > this.maxHistoryLength) {
-          const systemMsg = this.conversationHistory.find((m) => m.role === 'system');
-          const recentMessages = this.conversationHistory.slice(
-            this.conversationHistory.length - this.maxHistoryLength + (systemMsg ? 1 : 0),
-          );
-          this.conversationHistory = systemMsg
-            ? [systemMsg, ...recentMessages]
-            : recentMessages;
-        }
+      if (this.conversationHistory.length > this.maxHistoryLength) {
+        const systemMsg = this.conversationHistory.find((m) => m.role === 'system');
+        const recentMessages = this.conversationHistory.slice(
+          this.conversationHistory.length - this.maxHistoryLength + (systemMsg ? 1 : 0),
+        );
+        this.conversationHistory = systemMsg
+          ? [systemMsg, ...recentMessages]
+          : recentMessages;
       }
-
-      return result;
-    } finally {
-      originalOptions.streamCallback = prevCallback;
     }
+
+    return result;
   }
 
   private readBody(req: IncomingMessage): Promise<string> {

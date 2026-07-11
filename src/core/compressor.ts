@@ -137,7 +137,7 @@ ${conversationText}
       );
 
       return response.message.content;
-    } catch (error) {
+    } catch {
       logger.warn('Failed to generate summary, using fallback');
       // 回退策略：简单提取最近几条的关键信息
       return this.fallbackSummary(messages);

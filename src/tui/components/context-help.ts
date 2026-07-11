@@ -4,8 +4,8 @@
  */
 
 import { TUIEngine, type KeyEvent, type Rect } from '../engine.js';
-import { Colors, Theme, colorize, dim, bold } from '../theme.js';
-import { getStringWidth, truncateString } from '../utils.js';
+import { Colors, colorize, dim } from '../theme.js';
+import { truncateString } from '../utils.js';
 
 /** 帮助提示 */
 export interface HelpTip {
@@ -80,7 +80,7 @@ export class ContextHelp {
   }
 
   /** 显示工具提示 */
-  showTooltip(content: string, position?: { x: number; y: number }): void {
+  showTooltip(content: string, _position?: { x: number; y: number }): void {
     const tip: HelpTip = {
       id: `tooltip_${Date.now()}`,
       context: 'tooltip',

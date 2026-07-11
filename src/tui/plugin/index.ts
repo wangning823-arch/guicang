@@ -3,7 +3,6 @@
  * 支持插件扩展 TUI 功能
  */
 
-import type { KeyEvent, Rect } from '../engine.js';
 import type { ThemeManager } from '../theme/index.js';
 import type { KeybindingManager, Action } from '../managers/keybinding.js';
 
@@ -218,7 +217,7 @@ export const devToolsPlugin: TUIPlugin = {
   description: '开发调试工具，显示性能指标和调试信息',
   author: 'guicang',
 
-  install: (context) => {
+  install: (_context) => {
     // 注册调试面板
     // 这里可以添加调试面板的注册逻辑
   },

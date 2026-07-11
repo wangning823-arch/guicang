@@ -114,13 +114,19 @@ export class SearchManager {
   /** 搜索工具调用 */
   private searchTools(query: string): SearchResult[] {
     return this.toolCalls
-      .filter(tool => tool.name.toLowerCase().includes(query) || tool.status.toLowerCase().includes(query))
-      .map((tool, index) => ({
-        type: 'tool' as const,
-        id: `tool_${index}`,
-        content: `${tool.name} - ${tool.status}`,
-        metadata: { name: tool.name, status: tool.status, duration: tool.duration },
-      }));
+      .filter(tool => {
+        const status = tool.success ? 'success' : 'failed';
+        return tool.name.toLowerCase().includes(query) || status.includes(query);
+      })
+      .map((tool, index) => {
+        const status = tool.success ? 'success' : 'failed';
+        return {
+          type: 'tool' as const,
+          id: `tool_${index}`,
+          content: `${tool.name} - ${status}`,
+          metadata: { name: tool.name, status, duration: tool.duration },
+        };
+      });
   }
 
   /** 搜索 Agent */
@@ -182,7 +188,8 @@ export class SearchManager {
   filterTools(filter: ToolFilter): ToolCallEntry[] {
     return this.toolCalls.filter(tool => {
       if (filter.status && filter.status !== 'all') {
-        if (tool.status !== filter.status) {
+        const status = tool.success ? 'success' : 'failed';
+        if (status !== filter.status) {
           return false;
         }
       }

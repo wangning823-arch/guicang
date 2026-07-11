@@ -17,7 +17,6 @@ import {
 } from '../src/tui/utils/optimizer.js';
 import {
   VirtualScroll,
-  ScrollIndicator,
 } from '../src/tui/utils/virtual-scroll.js';
 
 describe('Extended Theme System', () => {
