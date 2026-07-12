@@ -25,6 +25,7 @@ import {
 } from './src/index.js';
 
 import { setLogOutput, type LogLevel, type LogEntry } from './src/core/logger.js';
+import type { Message } from './src/core/types.js';
 
 async function main() {
   // 注册工具
@@ -100,7 +101,7 @@ async function main() {
   let successRequests = 0;
   let failedRequests = 0;
   let totalLatency = 0;
-  let chatHistory: Array<{ role: 'system' | 'user' | 'assistant' | 'tool'; content: string; toolCallId?: string }> = [];
+  let chatHistory: Message[] = [];
 
   // 聊天面板高度减2：底部边框占1行，输入行占1行
   const chatPanel = new ChatPanel(1, 1, chatWidth, mainHeight - 2, {

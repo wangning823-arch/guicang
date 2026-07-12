@@ -62,10 +62,12 @@ export class MimoProvider extends BaseProvider {
     const systemMsg = messages.find((m) => m.role === 'system');
     const nonSystemMsgs = messages.filter((m) => m.role !== 'system');
 
+    const builtMessages = this.buildMessages(nonSystemMsgs);
+
     const body: Record<string, unknown> = {
       model: this.config.model,
       max_tokens: options?.maxTokens ?? 32768,
-      messages: this.buildMessages(nonSystemMsgs),
+      messages: builtMessages,
     };
 
     if (systemMsg) {
@@ -177,9 +179,13 @@ export class MimoProvider extends BaseProvider {
           });
         }
       } else if (msg.role === 'assistant') {
-        // 若携带完整 content blocks（含 tool_use），原样回放以保证 tool_result 匹配
+        // 若携带完整 content blocks（含 tool_use），过滤掉 thinking 块后回放
         if (msg.contentBlocks && msg.contentBlocks.length > 0) {
-          result.push({ role: 'assistant', content: msg.contentBlocks });
+          // 过滤掉 thinking 块（API 返回的扩展思考，不能发回给 API）
+          const filteredBlocks = msg.contentBlocks.filter(
+            (b) => b.type === 'text' || b.type === 'tool_use',
+          );
+          result.push({ role: 'assistant', content: filteredBlocks.length > 0 ? filteredBlocks : msg.content });
         } else {
           result.push({ role: 'assistant', content: msg.content });
         }
@@ -213,14 +219,16 @@ export class MimoProvider extends BaseProvider {
         };
       });
 
-    // 保留完整的 content blocks（包含 text + tool_use）
-    const contentBlocks: ContentBlock[] = data.content.map((c) => {
-      if (c.type === 'text') {
-        return { type: 'text' as const, text: (c as { type: 'text'; text: string }).text };
-      }
-      const tc = c as { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
-      return { type: 'tool_use' as const, id: tc.id, name: tc.name, input: tc.input };
-    });
+    // 保留完整的 content blocks（只保留 text + tool_use，过滤 thinking 等）
+    const contentBlocks: ContentBlock[] = data.content
+      .filter((c) => c.type === 'text' || c.type === 'tool_use')
+      .map((c) => {
+        if (c.type === 'text') {
+          return { type: 'text' as const, text: (c as { type: 'text'; text: string }).text };
+        }
+        const tc = c as { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
+        return { type: 'tool_use' as const, id: tc.id, name: tc.name, input: tc.input };
+      });
 
     return {
       message: {
