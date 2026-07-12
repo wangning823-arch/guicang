@@ -6,5 +6,7 @@ coverage/
 .env.local
 data/
 .claude/
-
 .mimocode
+tests/
+test-*
+user-info.txt
